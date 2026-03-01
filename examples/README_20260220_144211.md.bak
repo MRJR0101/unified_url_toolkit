@@ -1,0 +1,99 @@
+# examples
+
+**Category:** <!-- TODO: Add category (e.g., 06_URLs) -->
+**Status:** Production
+
+> Advanced usage examples showing all features of Unified URL Toolkit.
+
+## Overview
+
+**What it does:**
+This demonstrates the complete functionality including:
+- Core extraction, validation, normalization
+- Parallel processing
+- Progress tracking
+- Error handling
+- Analysis and categorization
+
+**What it does NOT do:**
+<!-- TODO: Describe boundaries to prevent wrong-tool confusion -->
+
+## Use Cases
+
+<!-- TODO: Add 2-4 concrete scenarios -->
+- 
+
+## Features
+
+- Core extraction, validation, normalization
+- Parallel processing
+- Progress tracking
+- Error handling
+- Analysis and categorization
+
+## Requirements
+
+- Python 3.8+
+- Windows 10/11
+- Third-party: unified_url_toolkit
+
+## Quick Start
+
+```powershell
+cd C:\Dev\PROJECTS\00_PyToolbelt\06_URLs\unified_url_toolkit\examples
+python advanced_usage.py --help
+```
+
+**First run:**
+```powershell
+python advanced_usage.py --dry-run
+```
+
+## Usage
+
+```powershell
+# Basic usage
+python advanced_usage.py --dry-run
+
+# <!-- TODO: Add real usage examples -->
+```
+
+## Input / Output
+
+**Expects:**
+<!-- TODO: Describe input format and sources -->
+
+**Creates:**
+<!-- TODO: Describe output files and locations -->
+
+## Pipeline Position
+
+**Fed by:** <!-- TODO: Upstream tools -->
+**Feeds into:** <!-- TODO: Downstream tools -->
+
+## Hardcoded Paths
+
+| Line | Current Value | Purpose |
+|------|---------------|---------|
+| 155 | `sample_urls.txt` | <!-- TODO: Describe purpose --> |
+
+## Files
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `advanced_usage.py` | 282 | Python script |
+| `basic_usage.py` | 196 | Python script |
+| `pyproject.toml` | 21 | Project configuration and dependencies |
+| `requirements.txt` | 7 | Python dependencies |
+| `specialized_modules.py` | 395 | Python script |
+
+## Safety & Reliability
+
+<!-- TODO: Describe dry-run mode, backup behavior, failure handling -->
+
+## License & Contact
+
+Internal tool. Maintainer: MR
+
+---
+*Part of PyToolbelt -- Zero-dependency Windows utilities*
