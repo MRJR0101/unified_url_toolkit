@@ -4,23 +4,35 @@ HTTP response inspection and header analysis.
 Analyzes HTTP status codes, headers, server info, and response characteristics.
 """
 
-from typing import Dict, Optional, Tuple, List
-from dataclasses import dataclass, field
-from datetime import datetime
-import requests
-from urllib.parse import urlparse
+from dataclasses import asdict, dataclass, field
+from typing import TYPE_CHECKING, Dict, List, Optional
 
-from ..config.settings import (
-    DEFAULT_HTTP_TIMEOUT,
-    DEFAULT_USER_AGENT,
-    FOLLOW_REDIRECTS,
-    VERIFY_SSL,
-)
+import requests  # type: ignore[import-untyped]
 
+if TYPE_CHECKING:
+    from ..config.settings import (
+        DEFAULT_HTTP_TIMEOUT,
+        DEFAULT_USER_AGENT,
+        VERIFY_SSL,
+    )
+else:
+    try:
+        from ..config.settings import (
+            DEFAULT_HTTP_TIMEOUT,
+            DEFAULT_USER_AGENT,
+            VERIFY_SSL,
+        )
+    except ImportError:
+        from config.settings import (
+            DEFAULT_HTTP_TIMEOUT,
+            DEFAULT_USER_AGENT,
+            VERIFY_SSL,
+        )
 
 # =============================================================================
 # DATA CLASSES
 # =============================================================================
+
 
 @dataclass
 class HTTPResponse:
@@ -61,6 +73,10 @@ class HTTPResponse:
     error: Optional[str] = None
     error_type: Optional[str] = None
 
+    def to_dict(self) -> dict:
+        """Convert response model to dictionary."""
+        return asdict(self)
+
 
 @dataclass
 class StatusCodeInfo:
@@ -74,14 +90,19 @@ class StatusCodeInfo:
     is_error: bool
     is_redirect: bool
 
+    def to_dict(self) -> dict:
+        """Convert status code model to dictionary."""
+        return asdict(self)
+
 
 # =============================================================================
 # HTTP INSPECTION
 # =============================================================================
 
+
 def inspect_url(
     url: str,
-    method: str = 'GET',
+    method: str = "GET",
     timeout: int = DEFAULT_HTTP_TIMEOUT,
     follow_redirects: bool = True,
     verify_ssl: bool = VERIFY_SSL,
@@ -108,11 +129,11 @@ def inspect_url(
         >>> print(f"Response time: {response.response_time_ms}ms")
     """
     # Ensure URL has scheme
-    if not url.startswith(('http://', 'https://')):
-        url = 'https://' + url
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
 
     # Prepare headers
-    headers = {'User-Agent': DEFAULT_USER_AGENT}
+    headers = {"User-Agent": DEFAULT_USER_AGENT}
     if custom_headers:
         headers.update(custom_headers)
 
@@ -120,7 +141,7 @@ def inspect_url(
         url=url,
         final_url=url,
         status_code=0,
-        reason='',
+        reason="",
     )
 
     try:
@@ -141,31 +162,31 @@ def inspect_url(
         result.headers = dict(response.headers)
 
         # Server info
-        result.server = response.headers.get('Server')
-        result.powered_by = response.headers.get('X-Powered-By')
+        result.server = response.headers.get("Server")
+        result.powered_by = response.headers.get("X-Powered-By")
 
         # Timing
-        if hasattr(response, 'elapsed'):
+        if hasattr(response, "elapsed"):
             result.response_time_ms = response.elapsed.total_seconds() * 1000
 
         # Redirect info
         result.was_redirected = response.url != url
-        if hasattr(response, 'history'):
+        if hasattr(response, "history"):
             result.redirect_count = len(response.history)
             result.redirect_chain = [r.url for r in response.history]
 
         # Content info
-        content_type = response.headers.get('Content-Type', '')
+        content_type = response.headers.get("Content-Type", "")
         if content_type:
-            parts = content_type.split(';')
+            parts = content_type.split(";")
             result.content_type = parts[0].strip()
 
             # Extract charset
             for part in parts[1:]:
-                if 'charset=' in part:
-                    result.charset = part.split('=', 1)[1].strip()
+                if "charset=" in part:
+                    result.charset = part.split("=", 1)[1].strip()
 
-        content_length = response.headers.get('Content-Length')
+        content_length = response.headers.get("Content-Length")
         if content_length:
             try:
                 result.content_length = int(content_length)
@@ -173,7 +194,7 @@ def inspect_url(
                 pass
 
         # Compression
-        encoding = response.headers.get('Content-Encoding')
+        encoding = response.headers.get("Content-Encoding")
         if encoding:
             result.is_compressed = True
             result.compression_type = encoding
@@ -196,7 +217,7 @@ def head_request(url: str, **kwargs) -> HTTPResponse:
     Returns:
         HTTPResponse object
     """
-    return inspect_url(url, method='HEAD', **kwargs)
+    return inspect_url(url, method="HEAD", **kwargs)
 
 
 def get_request(url: str, **kwargs) -> HTTPResponse:
@@ -210,12 +231,13 @@ def get_request(url: str, **kwargs) -> HTTPResponse:
     Returns:
         HTTPResponse object
     """
-    return inspect_url(url, method='GET', **kwargs)
+    return inspect_url(url, method="GET", **kwargs)
 
 
 # =============================================================================
 # HEADER ANALYSIS
 # =============================================================================
+
 
 def extract_header(
     response: HTTPResponse,
@@ -256,19 +278,16 @@ def get_security_headers(response: HTTPResponse) -> Dict[str, Optional[str]]:
         Dictionary of security headers
     """
     security_headers = [
-        'Strict-Transport-Security',
-        'Content-Security-Policy',
-        'X-Content-Type-Options',
-        'X-Frame-Options',
-        'X-XSS-Protection',
-        'Referrer-Policy',
-        'Permissions-Policy',
+        "Strict-Transport-Security",
+        "Content-Security-Policy",
+        "X-Content-Type-Options",
+        "X-Frame-Options",
+        "X-XSS-Protection",
+        "Referrer-Policy",
+        "Permissions-Policy",
     ]
 
-    return {
-        header: extract_header(response, header)
-        for header in security_headers
-    }
+    return {header: extract_header(response, header) for header in security_headers}
 
 
 def get_cache_headers(response: HTTPResponse) -> Dict[str, Optional[str]]:
@@ -282,18 +301,15 @@ def get_cache_headers(response: HTTPResponse) -> Dict[str, Optional[str]]:
         Dictionary of cache headers
     """
     cache_headers = [
-        'Cache-Control',
-        'Pragma',
-        'Expires',
-        'ETag',
-        'Last-Modified',
-        'Age',
+        "Cache-Control",
+        "Pragma",
+        "Expires",
+        "ETag",
+        "Last-Modified",
+        "Age",
     ]
 
-    return {
-        header: extract_header(response, header)
-        for header in cache_headers
-    }
+    return {header: extract_header(response, header) for header in cache_headers}
 
 
 def get_cors_headers(response: HTTPResponse) -> Dict[str, Optional[str]]:
@@ -307,18 +323,15 @@ def get_cors_headers(response: HTTPResponse) -> Dict[str, Optional[str]]:
         Dictionary of CORS headers
     """
     cors_headers = [
-        'Access-Control-Allow-Origin',
-        'Access-Control-Allow-Methods',
-        'Access-Control-Allow-Headers',
-        'Access-Control-Allow-Credentials',
-        'Access-Control-Max-Age',
-        'Access-Control-Expose-Headers',
+        "Access-Control-Allow-Origin",
+        "Access-Control-Allow-Methods",
+        "Access-Control-Allow-Headers",
+        "Access-Control-Allow-Credentials",
+        "Access-Control-Max-Age",
+        "Access-Control-Expose-Headers",
     ]
 
-    return {
-        header: extract_header(response, header)
-        for header in cors_headers
-    }
+    return {header: extract_header(response, header) for header in cors_headers}
 
 
 # =============================================================================
@@ -327,40 +340,36 @@ def get_cors_headers(response: HTTPResponse) -> Dict[str, Optional[str]]:
 
 STATUS_CODE_INFO = {
     # 1xx Informational
-    100: ('Informational', 'Continue', 'Client should continue request'),
-    101: ('Informational', 'Switching Protocols', 'Server switching protocols'),
-
+    100: ("Informational", "Continue", "Client should continue request"),
+    101: ("Informational", "Switching Protocols", "Server switching protocols"),
     # 2xx Success
-    200: ('Success', 'OK', 'Request succeeded'),
-    201: ('Success', 'Created', 'Resource created'),
-    202: ('Success', 'Accepted', 'Request accepted for processing'),
-    204: ('Success', 'No Content', 'Request succeeded, no content to return'),
-    206: ('Success', 'Partial Content', 'Partial resource delivered'),
-
+    200: ("Success", "OK", "Request succeeded"),
+    201: ("Success", "Created", "Resource created"),
+    202: ("Success", "Accepted", "Request accepted for processing"),
+    204: ("Success", "No Content", "Request succeeded, no content to return"),
+    206: ("Success", "Partial Content", "Partial resource delivered"),
     # 3xx Redirection
-    300: ('Redirect', 'Multiple Choices', 'Multiple options available'),
-    301: ('Redirect', 'Moved Permanently', 'Resource permanently moved'),
-    302: ('Redirect', 'Found', 'Resource temporarily moved'),
-    303: ('Redirect', 'See Other', 'See other URL'),
-    304: ('Redirect', 'Not Modified', 'Resource not modified'),
-    307: ('Redirect', 'Temporary Redirect', 'Temporary redirect, preserve method'),
-    308: ('Redirect', 'Permanent Redirect', 'Permanent redirect, preserve method'),
-
+    300: ("Redirect", "Multiple Choices", "Multiple options available"),
+    301: ("Redirect", "Moved Permanently", "Resource permanently moved"),
+    302: ("Redirect", "Found", "Resource temporarily moved"),
+    303: ("Redirect", "See Other", "See other URL"),
+    304: ("Redirect", "Not Modified", "Resource not modified"),
+    307: ("Redirect", "Temporary Redirect", "Temporary redirect, preserve method"),
+    308: ("Redirect", "Permanent Redirect", "Permanent redirect, preserve method"),
     # 4xx Client Errors
-    400: ('Client Error', 'Bad Request', 'Invalid request syntax'),
-    401: ('Client Error', 'Unauthorized', 'Authentication required'),
-    403: ('Client Error', 'Forbidden', 'Access denied'),
-    404: ('Client Error', 'Not Found', 'Resource not found'),
-    405: ('Client Error', 'Method Not Allowed', 'HTTP method not allowed'),
-    408: ('Client Error', 'Request Timeout', 'Request took too long'),
-    410: ('Client Error', 'Gone', 'Resource permanently removed'),
-    429: ('Client Error', 'Too Many Requests', 'Rate limit exceeded'),
-
+    400: ("Client Error", "Bad Request", "Invalid request syntax"),
+    401: ("Client Error", "Unauthorized", "Authentication required"),
+    403: ("Client Error", "Forbidden", "Access denied"),
+    404: ("Client Error", "Not Found", "Resource not found"),
+    405: ("Client Error", "Method Not Allowed", "HTTP method not allowed"),
+    408: ("Client Error", "Request Timeout", "Request took too long"),
+    410: ("Client Error", "Gone", "Resource permanently removed"),
+    429: ("Client Error", "Too Many Requests", "Rate limit exceeded"),
     # 5xx Server Errors
-    500: ('Server Error', 'Internal Server Error', 'Server error occurred'),
-    502: ('Server Error', 'Bad Gateway', 'Invalid response from upstream'),
-    503: ('Server Error', 'Service Unavailable', 'Service temporarily unavailable'),
-    504: ('Server Error', 'Gateway Timeout', 'Upstream timeout'),
+    500: ("Server Error", "Internal Server Error", "Server error occurred"),
+    502: ("Server Error", "Bad Gateway", "Invalid response from upstream"),
+    503: ("Server Error", "Service Unavailable", "Service temporarily unavailable"),
+    504: ("Server Error", "Gateway Timeout", "Upstream timeout"),
 }
 
 
@@ -379,20 +388,20 @@ def get_status_info(status_code: int) -> StatusCodeInfo:
     else:
         # Generic category
         if 100 <= status_code < 200:
-            category = 'Informational'
+            category = "Informational"
         elif 200 <= status_code < 300:
-            category = 'Success'
+            category = "Success"
         elif 300 <= status_code < 400:
-            category = 'Redirect'
+            category = "Redirect"
         elif 400 <= status_code < 500:
-            category = 'Client Error'
+            category = "Client Error"
         elif 500 <= status_code < 600:
-            category = 'Server Error'
+            category = "Server Error"
         else:
-            category = 'Unknown'
+            category = "Unknown"
 
-        reason = f'Status {status_code}'
-        description = f'HTTP status code {status_code}'
+        reason = f"Status {status_code}"
+        description = f"HTTP status code {status_code}"
 
     return StatusCodeInfo(
         code=status_code,

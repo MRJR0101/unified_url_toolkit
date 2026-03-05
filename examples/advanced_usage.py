@@ -12,35 +12,40 @@ This demonstrates the complete functionality including:
 
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add workspace root to path for local source execution.
+project_root = Path(__file__).resolve().parents[1]
+workspace_root = project_root.parent
+if str(workspace_root) not in sys.path:
+    sys.path.insert(0, str(workspace_root))
 
-from unified_url_toolkit import (
-    # Core
-    extract_urls_from_text,
-    extract_domains_from_text,
-    validate_domain,
-    validate_url,
-    normalize_domain,
-    normalize_url,
-
-    # Processing
-    process_parallel,
-    process_parallel_with_progress,
-    batch_items,
-
-    # Utils
-    ProgressBar,
-    SimpleProgress,
-    create_progress_callback,
-    ErrorCollector,
-
-    # Analysis
-    categorize_urls,
-    get_top_domains,
-    get_top_tlds,
-)
+if TYPE_CHECKING:
+    from analysis import categorize_urls, get_top_domains, get_top_tlds
+    from core.extractors import extract_domains_from_text, extract_urls_from_text
+    from core.normalizers import normalize_domain
+    from core.validators import validate_domain, validate_url
+    from processing import batch_items, process_parallel_with_progress
+    from utils import ErrorCollector, ProgressBar, create_progress_callback
+else:
+    from unified_url_toolkit import (
+        ErrorCollector,
+        # Utils
+        ProgressBar,
+        batch_items,
+        # Analysis
+        categorize_urls,
+        create_progress_callback,
+        extract_domains_from_text,
+        # Core
+        extract_urls_from_text,
+        get_top_domains,
+        get_top_tlds,
+        normalize_domain,
+        process_parallel_with_progress,
+        validate_domain,
+        validate_url,
+    )
 
 
 def example_parallel_processing():
@@ -61,26 +66,18 @@ def example_parallel_processing():
     def validate_and_check(url: str) -> dict:
         """Validate URL and return result."""
         is_valid, reason = validate_url(url, check_scheme=False)
-        return {
-            'url': url,
-            'valid': is_valid,
-            'reason': reason
-        }
+        return {"url": url, "valid": is_valid, "reason": reason}
 
     # Process in parallel with progress
     print(f"\nValidating {len(urls)} URLs in parallel...\n")
 
     callback = create_progress_callback(len(urls), desc="Validating")
     results = process_parallel_with_progress(
-        urls,
-        validate_and_check,
-        max_workers=10,
-        use_threads=True,
-        progress_callback=callback
+        urls, validate_and_check, max_workers=10, use_threads=True, progress_callback=callback
     )
 
     # Count valid/invalid
-    valid_count = sum(1 for r in results if r and r['valid'])
+    valid_count = sum(1 for r in results if r and r["valid"])
     print(f"\nResults: {valid_count}/{len(urls)} valid URLs")
 
 
@@ -101,7 +98,7 @@ def example_batch_processing():
     with ProgressBar(total=total_batches, desc="Processing batches") as progress:
         for batch in batch_items(domains, batch_size):
             # Process batch
-            normalized = [normalize_domain(d) for d in batch]
+            _ = [normalize_domain(d) for d in batch]
             progress.update(1)
 
     print(f"Processed {len(domains)} domains in {total_batches} batches")
@@ -132,12 +129,12 @@ def example_error_handling():
             is_valid, status = validate_domain(domain)
             if is_valid:
                 valid_domains.append(domain)
-                print(f"✓ {domain}")
+                print(f"[OK] {domain}")
             else:
                 raise ValueError(f"Invalid: {status.value}")
         except Exception as e:
             collector.add(e, context=f"Domain: {domain}")
-            print(f"✗ {domain} - {e}")
+            print(f"[X] {domain} - {e}")
 
     print(f"\n{len(valid_domains)} valid, {collector.count()} errors")
 
@@ -244,7 +241,7 @@ def example_complete_pipeline():
     print(f"Unique domains: {len(result.unique_domains)}")
     print(f"With paths: {len(result.with_paths)}")
 
-    print("\n✅ Pipeline complete!")
+    print("\n[OK] Pipeline complete!")
 
 
 def main():
@@ -268,8 +265,9 @@ def main():
         try:
             example_func()
         except Exception as e:
-            print(f"\n❌ Error in {example_func.__name__}: {e}")
+            print(f"\n[ERROR] Error in {example_func.__name__}: {e}")
             import traceback
+
             traceback.print_exc()
 
     print("\n" + "=" * 70)

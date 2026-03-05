@@ -5,23 +5,25 @@ Source: Extracted from LinkTools/core/checker.py
 Enhanced with additional functionality from ValidateLinks and MyUrlChecker
 """
 
+from __future__ import annotations
+
 import asyncio
-import time
 import sys
-from dataclasses import dataclass, asdict
-from typing import List, Optional, Tuple
+import threading
+import time
+from dataclasses import asdict, dataclass
+from typing import Any, List, Optional, Tuple, cast
 
 try:
     import aiohttp
-    from aiohttp import ClientTimeout
 except ImportError:
-    aiohttp = None
-    ClientTimeout = None
+    aiohttp = cast(Any, None)
 
 
 # =============================================================================
 # DATA CLASSES
 # =============================================================================
+
 
 @dataclass
 class CheckResult:
@@ -43,16 +45,17 @@ class CheckResult:
 
     def is_ok(self) -> bool:
         """Check if URL is accessible (2xx status)."""
-        return self.status == 'ok'
+        return self.status == "ok"
 
     def is_error(self) -> bool:
         """Check if URL has an error."""
-        return self.status in ('client_error', 'server_error', 'timeout', 'network_error')
+        return self.status in ("client_error", "server_error", "timeout", "network_error")
 
 
 # =============================================================================
 # URL CHECKER
 # =============================================================================
+
 
 class URLChecker:
     """
@@ -88,9 +91,9 @@ class URLChecker:
         """
         if aiohttp is None:
             import warnings
+
             warnings.warn(
-                "aiohttp not installed: pip install aiohttp for async checking. "
-                "URL checking will not be available."
+                "aiohttp not installed: pip install aiohttp for async checking. URL checking will not be available."
             )
 
         self.timeout = timeout
@@ -101,9 +104,7 @@ class URLChecker:
         self.results: List[CheckResult] = []
 
     async def _fetch_head_then_get(
-        self,
-        session: aiohttp.ClientSession,
-        url: str
+        self, session: aiohttp.ClientSession, url: str
     ) -> Tuple[str, Optional[int], str, Optional[str], Optional[int]]:
         """
         Try HEAD first, fall back to GET if needed.
@@ -115,10 +116,10 @@ class URLChecker:
             # Try HEAD first (faster, less bandwidth)
             async with session.head(url, allow_redirects=self.follow_redirects) as resp:
                 await resp.read()
-                ct = resp.headers.get('Content-Type')
-                cl = resp.headers.get('Content-Length')
+                ct = resp.headers.get("Content-Type")
+                cl = resp.headers.get("Content-Length")
                 cl_int = int(cl) if cl and cl.isdigit() else None
-                return str(resp.url), resp.status, resp.reason or '', ct, cl_int
+                return str(resp.url), resp.status, resp.reason or "", ct, cl_int
         except (aiohttp.ClientError, asyncio.TimeoutError):
             pass
 
@@ -126,18 +127,14 @@ class URLChecker:
         try:
             async with session.get(url, allow_redirects=self.follow_redirects) as resp:
                 body = await resp.read()
-                ct = resp.headers.get('Content-Type')
-                cl = resp.headers.get('Content-Length')
+                ct = resp.headers.get("Content-Type")
+                cl = resp.headers.get("Content-Length")
                 cl_int = int(cl) if cl and cl.isdigit() else len(body)
-                return str(resp.url), resp.status, resp.reason or '', ct, cl_int
+                return str(resp.url), resp.status, resp.reason or "", ct, cl_int
         except (aiohttp.ClientError, asyncio.TimeoutError):
             raise
 
-    async def _check_one(
-        self,
-        session: aiohttp.ClientSession,
-        url: str
-    ) -> CheckResult:
+    async def _check_one(self, session: aiohttp.ClientSession, url: str) -> CheckResult:
         """Check a single URL with retry logic."""
         t0 = time.perf_counter()
         last_err: Optional[str] = None
@@ -150,15 +147,15 @@ class URLChecker:
 
                 # Determine status category
                 if st is None:
-                    status = 'network_error'
+                    status = "network_error"
                 elif 200 <= st <= 299:
-                    status = 'ok'
+                    status = "ok"
                 elif 300 <= st <= 399:
-                    status = 'redirected'
+                    status = "redirected"
                 elif 400 <= st <= 499:
-                    status = 'client_error'
+                    status = "client_error"
                 else:
-                    status = 'server_error'
+                    status = "server_error"
 
                 return CheckResult(
                     url=url,
@@ -173,7 +170,7 @@ class URLChecker:
                 )
 
             except asyncio.TimeoutError:
-                last_err = 'Timeout'
+                last_err = "Timeout"
                 attempt += 1
             except aiohttp.ClientError as e:
                 last_err = f"{type(e).__name__}: {e}"
@@ -185,13 +182,13 @@ class URLChecker:
             # Check if we've exhausted retries
             if attempt > self.retries:
                 elapsed_ms = int((time.perf_counter() - t0) * 1000)
-                status = 'timeout' if last_err == 'Timeout' else 'network_error'
+                status = "timeout" if last_err == "Timeout" else "network_error"
                 return CheckResult(
                     url=url,
                     final_url=url,
                     status=status,
                     http_status=None,
-                    reason='Error',
+                    reason="Error",
                     content_type=None,
                     content_length=None,
                     elapsed_ms=elapsed_ms,
@@ -215,39 +212,94 @@ class URLChecker:
             raise ImportError("aiohttp required: pip install aiohttp")
 
         # Windows event loop policy fix
-        if sys.platform.startswith('win'):
+        if sys.platform.startswith("win"):
             try:
                 asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
             except Exception:
                 pass
 
-        timeout = ClientTimeout(total=self.timeout)
+        timeout = aiohttp.ClientTimeout(total=self.timeout)
         connector = aiohttp.TCPConnector(limit_per_host=0, ttl_dns_cache=300)
-        headers = {'User-Agent': self.user_agent}
+        headers = {"User-Agent": self.user_agent}
 
         sem = asyncio.Semaphore(self.concurrency)
-        results: List[CheckResult] = []
+        results: list[Optional[CheckResult]] = [None] * len(urls)
 
-        async with aiohttp.ClientSession(
-            timeout=timeout,
-            connector=connector,
-            headers=headers
-        ) as session:
+        async with aiohttp.ClientSession(timeout=timeout, connector=connector, headers=headers) as session:
 
-            async def worker(url: str):
+            async def worker(index: int, url: str):
                 async with sem:
-                    result = await self._check_one(session, url)
-                    results.append(result)
+                    try:
+                        result = await self._check_one(session, url)
+                    except Exception as exc:
+                        result = CheckResult(
+                            url=url,
+                            final_url=url,
+                            status="network_error",
+                            http_status=None,
+                            reason="Error",
+                            content_type=None,
+                            content_length=None,
+                            elapsed_ms=0,
+                            error=f"{type(exc).__name__}: {exc}",
+                        )
+                    results[index] = result
 
-            tasks = [asyncio.create_task(worker(url)) for url in urls]
-            await asyncio.gather(*tasks, return_exceptions=True)
+            tasks = [asyncio.create_task(worker(index, url)) for index, url in enumerate(urls)]
+            await asyncio.gather(*tasks)
 
-        self.results = results
-        return results
+        ordered_results: list[CheckResult] = []
+        for index, maybe_result in enumerate(results):
+            if maybe_result is not None:
+                ordered_results.append(maybe_result)
+                continue
+
+            ordered_results.append(
+                CheckResult(
+                    url=urls[index],
+                    final_url=urls[index],
+                    status="network_error",
+                    http_status=None,
+                    reason="Error",
+                    content_type=None,
+                    content_length=None,
+                    elapsed_ms=0,
+                    error="check task did not return a result",
+                )
+            )
+
+        self.results = ordered_results
+        return ordered_results
 
     def check_sync(self, urls: List[str]) -> List[CheckResult]:
-        """Synchronous wrapper around check_all."""
-        return asyncio.run(self.check_all(urls))
+        """
+        Synchronous wrapper around check_all.
+
+        If called from an already-running event loop (e.g., notebooks),
+        run the async checker in a worker thread.
+        """
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(self.check_all(urls))
+
+        result_container: dict[str, List[CheckResult]] = {}
+        error_container: dict[str, BaseException] = {}
+
+        def run_in_thread():
+            try:
+                result_container["results"] = asyncio.run(self.check_all(urls))
+            except BaseException as exc:
+                error_container["error"] = exc
+
+        thread = threading.Thread(target=run_in_thread, daemon=True)
+        thread.start()
+        thread.join()
+
+        if "error" in error_container:
+            raise error_container["error"]
+
+        return result_container.get("results", [])
 
     def get_summary(self) -> dict:
         """
@@ -259,24 +311,24 @@ class URLChecker:
         if not self.results:
             return {}
 
-        status_counts = {}
+        status_counts: dict[str, int] = {}
         total_time = 0
         ok_count = 0
 
         for r in self.results:
             status_counts[r.status] = status_counts.get(r.status, 0) + 1
             total_time += r.elapsed_ms
-            if r.status == 'ok':
+            if r.status == "ok":
                 ok_count += 1
 
         return {
-            'total': len(self.results),
-            'ok': ok_count,
-            'failed': len(self.results) - ok_count,
-            'by_status': status_counts,
-            'avg_time_ms': total_time // len(self.results) if self.results else 0,
-            'total_time_ms': total_time,
-            'success_rate': (ok_count / len(self.results) * 100) if self.results else 0,
+            "total": len(self.results),
+            "ok": ok_count,
+            "failed": len(self.results) - ok_count,
+            "by_status": status_counts,
+            "avg_time_ms": total_time // len(self.results) if self.results else 0,
+            "total_time_ms": total_time,
+            "success_rate": (ok_count / len(self.results) * 100) if self.results else 0,
         }
 
     def get_failed_urls(self) -> List[CheckResult]:
@@ -292,9 +344,8 @@ class URLChecker:
 # CONVENIENCE FUNCTIONS
 # =============================================================================
 
-def check_urls(urls: List[str],
-               timeout: float = 15.0,
-               concurrency: int = 50) -> List[CheckResult]:
+
+def check_urls(urls: List[str], timeout: float = 15.0, concurrency: int = 50) -> List[CheckResult]:
     """
     Convenience function to check URLs synchronously.
 
@@ -310,7 +361,7 @@ def check_urls(urls: List[str],
     return checker.check_sync(urls)
 
 
-def check_url(url: str, timeout: float = 15.0) -> CheckResult:
+def check_url(url: str, timeout: float = 15.0) -> Optional[CheckResult]:
     """
     Convenience function to check a single URL.
 

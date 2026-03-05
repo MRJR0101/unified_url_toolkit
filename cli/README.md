@@ -1,145 +1,34 @@
-# cli
+# CLI Module
 
-**Category:** <!-- TODO: Add category (e.g., 06_URLs) -->
-**Status:** Production
+Command adapters for domain cleanup, URL extraction, and link checking.
 
-> Check URL status with async parallel requests.
+## Scripts
+- `clean_domains.py`
+- `extract_urls.py`
+- `check_links.py`
 
-## Overview
+## Responsibilities
+- parse CLI arguments
+- call reusable library modules
+- emit user-facing summaries and outputs
 
-**What it does:**
-BEFORE: 8+ separate implementations (CheckLinks, ValidateLinks, MyUrlChecker, etc.)
-AFTER: One clean implementation using unified checker
-
-Replaces:
-- CheckLinks/
-- ValidateLinks/
-- MyUrlChecker/
-- Linkchecker/
-- LinkCheckerv2/
-- URLToolkit url_validator and link_checker functions
-
-**What it does NOT do:**
-<!-- TODO: Describe boundaries to prevent wrong-tool confusion -->
-
-## Use Cases
-
-<!-- TODO: Add 2-4 concrete scenarios -->
-- 
-
-## Features
-
-- CheckLinks/
-- ValidateLinks/
-- MyUrlChecker/
-- Linkchecker/
-- LinkCheckerv2/
-- URLToolkit url_validator and link_checker functions
-
-## Requirements
-
-- Python 3.8+
-- Windows 10/11
-- Third-party: core
-
-## Quick Start
-
+## Preferred Commands
 ```powershell
-cd C:\Dev\PROJECTS\00_PyToolbelt\06_URLs\unified_url_toolkit\cli
-python check_links.py --help
+uv run uut-clean-domains input.txt -o cleaned.txt --strip-www --sort
+uv run uut-extract-urls . -r -e txt,md,html --csv extracted.csv
+uv run uut-check-links urls.txt -o results.csv --timeout 20 --concurrency 100
 ```
 
-**First run:**
+## Script Fallback
 ```powershell
-python check_links.py --dry-run
+uv run python cli\clean_domains.py input.txt -o cleaned.txt --strip-www --sort
+uv run python cli\extract_urls.py . -r -e txt,md,html --csv extracted.csv
+uv run python cli\check_links.py urls.txt -o results.csv --timeout 20 --concurrency 100
 ```
 
-## Usage
+## Roadmap Alignment
+CLI should remain thin and package-first (`unified_url_toolkit.*`) per [Vision And Plan](../docs/VISION_AND_PLAN.md).
 
-```powershell
-# Basic usage
-python check_links.py --dry-run
-
-# <!-- TODO: Add real usage examples -->
-```
-
-## Options
-
-| Argument | Default | Description |
-|----------|---------|-------------|
-| `input` | -- |  |
-| `--output` | -- | Output CSV file for results |
-| `--json` | -- | Output JSON file for results |
-| `--concurrency` | 50 |  |
-| `--timeout` | 15.0 |  |
-| `--retries` | 2 |  |
-| `--no-redirects` | -- | Don\ |
-| `--show-ok` | -- | Show successful URLs in output |
-| `--show-all` | -- |  |
-
-## Input / Output
-
-**Expects:**
-<!-- TODO: Describe input format and sources -->
-
-**Creates:**
-<!-- TODO: Describe output files and locations -->
-
-## Pipeline Position
-
-**Fed by:** <!-- TODO: Upstream tools -->
-**Feeds into:** <!-- TODO: Downstream tools -->
-
-## Hardcoded Paths
-
-| Line | Current Value | Purpose |
-|------|---------------|---------|
-| 94 | `C:\\path\\to\\yourfile` | <!-- TODO: Describe purpose --> |
-
-## Files
-
-| File | Lines | Purpose |
-|------|-------|---------|
-| `check_links.py` | 184 | Python script |
-| `clean_domains.py` | 124 | Python script |
-| `extract_urls.py` | 186 | Python script |
-| `pyproject.toml` | 20 | Project configuration and dependencies |
-| `requirements.txt` | 7 | Python dependencies |
-| `uv.lock` | 706 |  |
-
-## Safety & Reliability
-
-<!-- TODO: Describe dry-run mode, backup behavior, failure handling -->
-
-## License & Contact
-
-Internal tool. Maintainer: MR
-
----
-*Part of PyToolbelt -- Zero-dependency Windows utilities*
-
-<!-- ReadmeForge: The following sections were auto-appended. Move them to the correct position per the 21-section blueprint. -->
-
-## How It Works
-
-<!-- TODO: Add a ## How It Works section with numbered steps describing the internal processing flow from input to output. -->
-
-
-## Example Output
-
-<!-- TODO: Add a ## Example Output section with a fenced code block showing realistic console output from a typical run. -->
-
-
-## Logging & Observability
-
-<!-- TODO: Add a ## Logging section describing: where logs are written, log format, verbosity flags, and any run artifacts produced. -->
-
-
-## Troubleshooting / FAQ
-
-<!-- TODO: Add a ## Troubleshooting section with Problem/Fix pairs for the most common errors. Include known limitations. -->
-
-
-## Versioning / Roadmap
-
-<!-- TODO: Add a ## Versioning section with the current version number and a roadmap of planned features. -->
+## Related Docs
+- [Usage Guide](../docs/USAGE.md)
+- [Architecture](../docs/ARCHITECTURE.md)

@@ -10,15 +10,15 @@ Analyzes response content including:
 - File type fingerprinting
 """
 
-from typing import Optional, Dict, Tuple, List
-from dataclasses import dataclass, field
 import mimetypes
 import re
-
+from dataclasses import asdict, dataclass
+from typing import Dict, List, Optional, Tuple
 
 # =============================================================================
 # DATA CLASSES
 # =============================================================================
+
 
 @dataclass
 class ContentAnalysis:
@@ -56,38 +56,63 @@ class ContentAnalysis:
     transfer_encoding: Optional[str] = None
     is_chunked: bool = False
 
+    def to_dict(self) -> dict:
+        """Convert analysis model to dictionary."""
+        return asdict(self)
+
 
 # =============================================================================
 # MIME TYPE ANALYSIS
 # =============================================================================
 
 MIME_CATEGORIES = {
-    'text': ['text/'],
-    'image': ['image/'],
-    'video': ['video/'],
-    'audio': ['audio/'],
-    'application': ['application/'],
-    'multipart': ['multipart/'],
-    'message': ['message/'],
+    "text": ["text/"],
+    "image": ["image/"],
+    "video": ["video/"],
+    "audio": ["audio/"],
+    "application": ["application/"],
+    "multipart": ["multipart/"],
+    "message": ["message/"],
 }
 
 BINARY_MIME_TYPES = {
-    'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp',
-    'video/mp4', 'video/mpeg', 'video/webm', 'video/quicktime',
-    'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/webm',
-    'application/pdf', 'application/zip', 'application/x-rar',
-    'application/octet-stream', 'application/x-msdownload',
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+    "image/bmp",
+    "video/mp4",
+    "video/mpeg",
+    "video/webm",
+    "video/quicktime",
+    "audio/mpeg",
+    "audio/wav",
+    "audio/ogg",
+    "audio/webm",
+    "application/pdf",
+    "application/zip",
+    "application/x-rar",
+    "application/octet-stream",
+    "application/x-msdownload",
 }
 
 TEXT_MIME_TYPES = {
-    'text/html', 'text/plain', 'text/css', 'text/javascript',
-    'text/xml', 'text/csv', 'text/markdown',
-    'application/json', 'application/xml', 'application/javascript',
-    'application/xhtml+xml', 'application/rss+xml',
+    "text/html",
+    "text/plain",
+    "text/css",
+    "text/javascript",
+    "text/xml",
+    "text/csv",
+    "text/markdown",
+    "application/json",
+    "application/xml",
+    "application/javascript",
+    "application/xhtml+xml",
+    "application/rss+xml",
 }
 
 
-def parse_content_type(content_type: str) -> Tuple[str, Optional[str]]:
+def parse_content_type(content_type: str) -> Tuple[Optional[str], Optional[str]]:
     """
     Parse Content-Type header into MIME type and charset.
 
@@ -104,14 +129,14 @@ def parse_content_type(content_type: str) -> Tuple[str, Optional[str]]:
     if not content_type:
         return None, None
 
-    parts = content_type.split(';')
+    parts = content_type.split(";")
     mime_type = parts[0].strip().lower()
 
     charset = None
     for part in parts[1:]:
         part = part.strip()
-        if part.startswith('charset='):
-            charset = part.split('=', 1)[1].strip().strip('"\'')
+        if part.startswith("charset="):
+            charset = part.split("=", 1)[1].strip().strip("\"'")
 
     return mime_type, charset
 
@@ -152,11 +177,11 @@ def is_binary_mime(mime_type: str) -> bool:
 
     # Check by category
     category = get_mime_category(mime_type)
-    if category in ('image', 'video', 'audio'):
+    if category in ("image", "video", "audio"):
         return True
 
     # Check for "octet-stream"
-    if 'octet-stream' in mime_type:
+    if "octet-stream" in mime_type:
         return True
 
     return False
@@ -174,11 +199,11 @@ def is_text_mime(mime_type: str) -> bool:
         return True
 
     # Check if starts with "text/"
-    if mime_type.startswith('text/'):
+    if mime_type.startswith("text/"):
         return True
 
     # Check for JSON/XML variants
-    if 'json' in mime_type or 'xml' in mime_type:
+    if "json" in mime_type or "xml" in mime_type:
         return True
 
     return False
@@ -189,11 +214,11 @@ def is_text_mime(mime_type: str) -> bool:
 # =============================================================================
 
 COMPRESSION_TYPES = {
-    'gzip': 'gzip',
-    'br': 'brotli',
-    'deflate': 'deflate',
-    'compress': 'compress',
-    'identity': 'identity',
+    "gzip": "gzip",
+    "br": "brotli",
+    "deflate": "deflate",
+    "compress": "compress",
+    "identity": "identity",
 }
 
 
@@ -215,7 +240,7 @@ def analyze_compression(content_encoding: str) -> Tuple[bool, Optional[str]]:
     # Check for known compression types
     for key, compression_type in COMPRESSION_TYPES.items():
         if key in encoding:
-            is_compressed = compression_type != 'identity'
+            is_compressed = compression_type != "identity"
             return is_compressed, compression_type if is_compressed else None
 
     return False, None
@@ -224,6 +249,7 @@ def analyze_compression(content_encoding: str) -> Tuple[bool, Optional[str]]:
 # =============================================================================
 # SIZE FORMATTING
 # =============================================================================
+
 
 def format_bytes(size_bytes: int) -> str:
     """
@@ -237,17 +263,18 @@ def format_bytes(size_bytes: int) -> str:
     """
     if size_bytes < 1024:
         return f"{size_bytes} B"
-    elif size_bytes < 1024 ** 2:
+    elif size_bytes < 1024**2:
         return f"{size_bytes / 1024:.1f} KB"
-    elif size_bytes < 1024 ** 3:
-        return f"{size_bytes / (1024 ** 2):.1f} MB"
+    elif size_bytes < 1024**3:
+        return f"{size_bytes / (1024**2):.1f} MB"
     else:
-        return f"{size_bytes / (1024 ** 3):.2f} GB"
+        return f"{size_bytes / (1024**3):.2f} GB"
 
 
 # =============================================================================
 # CONTENT ANALYSIS FUNCTION
 # =============================================================================
+
 
 def analyze_content(
     content_type: Optional[str] = None,
@@ -289,7 +316,7 @@ def analyze_content(
 
         if mime_type:
             # Get category and subtype
-            parts = mime_type.split('/')
+            parts = mime_type.split("/")
             if len(parts) == 2:
                 analysis.mime_category = parts[0]
                 analysis.mime_subtype = parts[1]
@@ -299,16 +326,18 @@ def analyze_content(
             # Classify content
             analysis.is_binary = is_binary_mime(mime_type)
             analysis.is_text = is_text_mime(mime_type)
-            analysis.is_html = mime_type in ('text/html', 'application/xhtml+xml')
-            analysis.is_json = 'json' in mime_type
-            analysis.is_xml = 'xml' in mime_type
-            analysis.is_image = mime_type.startswith('image/')
-            analysis.is_video = mime_type.startswith('video/')
-            analysis.is_audio = mime_type.startswith('audio/')
-            analysis.is_pdf = mime_type == 'application/pdf'
+            analysis.is_html = mime_type in ("text/html", "application/xhtml+xml")
+            analysis.is_json = "json" in mime_type
+            analysis.is_xml = "xml" in mime_type
+            analysis.is_image = mime_type.startswith("image/")
+            analysis.is_video = mime_type.startswith("video/")
+            analysis.is_audio = mime_type.startswith("audio/")
+            analysis.is_pdf = mime_type == "application/pdf"
             analysis.is_archive = mime_type in (
-                'application/zip', 'application/x-rar',
-                'application/x-tar', 'application/gzip',
+                "application/zip",
+                "application/x-rar",
+                "application/x-tar",
+                "application/gzip",
             )
 
     # Parse Content-Length
@@ -330,7 +359,7 @@ def analyze_content(
     # Parse Transfer-Encoding
     if transfer_encoding:
         analysis.transfer_encoding = transfer_encoding
-        analysis.is_chunked = 'chunked' in transfer_encoding.lower()
+        analysis.is_chunked = "chunked" in transfer_encoding.lower()
 
     return analysis
 
@@ -338,6 +367,7 @@ def analyze_content(
 # =============================================================================
 # CONTENT SNIFFING
 # =============================================================================
+
 
 def sniff_content_type(content: bytes, declared_type: Optional[str] = None) -> str:
     """
@@ -357,42 +387,43 @@ def sniff_content_type(content: bytes, declared_type: Optional[str] = None) -> s
         return "application/octet-stream"
 
     # Check magic bytes
-    if content.startswith(b'\xFF\xD8\xFF'):
+    if content.startswith(b"\xff\xd8\xff"):
         return "image/jpeg"
-    elif content.startswith(b'\x89PNG\r\n\x1a\n'):
+    elif content.startswith(b"\x89PNG\r\n\x1a\n"):
         return "image/png"
-    elif content.startswith(b'GIF87a') or content.startswith(b'GIF89a'):
+    elif content.startswith(b"GIF87a") or content.startswith(b"GIF89a"):
         return "image/gif"
-    elif content.startswith(b'RIFF') and b'WEBP' in content[:12]:
+    elif content.startswith(b"RIFF") and b"WEBP" in content[:12]:
         return "image/webp"
-    elif content.startswith(b'%PDF-'):
+    elif content.startswith(b"%PDF-"):
         return "application/pdf"
-    elif content.startswith(b'PK\x03\x04'):
+    elif content.startswith(b"PK\x03\x04"):
         return "application/zip"
-    elif content.startswith(b'\x1f\x8b'):
+    elif content.startswith(b"\x1f\x8b"):
         return "application/gzip"
-    elif content.startswith(b'BZh'):
+    elif content.startswith(b"BZh"):
         return "application/x-bzip2"
 
     # Try to decode as text
     try:
-        text = content[:1024].decode('utf-8', errors='strict')
+        text = content[:1024].decode("utf-8", errors="strict")
 
         # Check for HTML
-        if re.search(r'<html|<!DOCTYPE html', text, re.IGNORECASE):
+        if re.search(r"<html|<!DOCTYPE html", text, re.IGNORECASE):
             return "text/html"
 
         # Check for XML
-        if text.strip().startswith('<?xml'):
+        if text.strip().startswith("<?xml"):
             return "application/xml"
 
         # Check for JSON
-        if text.strip().startswith(('{', '[')):
+        if text.strip().startswith(("{", "[")):
             try:
                 import json
+
                 json.loads(text)
                 return "application/json"
-            except:
+            except Exception:
                 pass
 
         # Generic text
@@ -407,9 +438,8 @@ def sniff_content_type(content: bytes, declared_type: Optional[str] = None) -> s
 # BATCH ANALYSIS
 # =============================================================================
 
-def analyze_multiple_contents(
-    responses: List[Dict[str, str]]
-) -> List[ContentAnalysis]:
+
+def analyze_multiple_contents(responses: List[Dict[str, str]]) -> List[ContentAnalysis]:
     """
     Analyze content for multiple responses.
 
@@ -423,10 +453,10 @@ def analyze_multiple_contents(
 
     for response in responses:
         analysis = analyze_content(
-            content_type=response.get('Content-Type'),
-            content_length=response.get('Content-Length'),
-            content_encoding=response.get('Content-Encoding'),
-            transfer_encoding=response.get('Transfer-Encoding'),
+            content_type=response.get("Content-Type"),
+            content_length=response.get("Content-Length"),
+            content_encoding=response.get("Content-Encoding"),
+            transfer_encoding=response.get("Transfer-Encoding"),
         )
         analyses.append(analysis)
 
@@ -436,6 +466,7 @@ def analyze_multiple_contents(
 # =============================================================================
 # CONTENT TYPE UTILITIES
 # =============================================================================
+
 
 def guess_extension(mime_type: str) -> Optional[str]:
     """

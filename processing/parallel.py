@@ -7,13 +7,12 @@ Consolidated from:
 - Parallel_extractor/ (concurrent processing patterns)
 """
 
-from typing import Callable, List, TypeVar, Iterator, Optional, Any
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from multiprocessing import cpu_count
-from functools import partial
+from typing import Callable, Iterator, List, Optional, TypeVar, cast
 
-T = TypeVar('T')
-R = TypeVar('R')
+T = TypeVar("T")
+R = TypeVar("R")
 
 
 def process_parallel(
@@ -23,7 +22,7 @@ def process_parallel(
     use_threads: bool = False,
     chunk_size: int = 10,
     timeout: Optional[float] = None,
-) -> List[R]:
+) -> List[R | Exception | None]:
     """
     Process items in parallel using threads or processes.
 
@@ -36,7 +35,9 @@ def process_parallel(
         timeout: Maximum time to wait for results (seconds)
 
     Returns:
-        List of results in original order
+        List of results in original order.
+        Failed items contain an Exception object.
+        If process_func itself returns None, None is preserved.
 
     Example:
         >>> urls = ["http://example.com", "http://test.org"]
@@ -50,25 +51,40 @@ def process_parallel(
 
     executor_class = ThreadPoolExecutor if use_threads else ProcessPoolExecutor
 
-    results = [None] * len(items)
+    del chunk_size  # Reserved for future map/chunk integration.
+    _unset = object()
+    results: list[R | Exception | None | object] = [_unset] * len(items)
 
     with executor_class(max_workers=max_workers) as executor:
         # Submit all tasks with their indices
-        future_to_index = {
-            executor.submit(process_func, item): idx
-            for idx, item in enumerate(items)
-        }
+        future_to_index = {executor.submit(process_func, item): idx for idx, item in enumerate(items)}
 
         # Collect results
-        for future in as_completed(future_to_index, timeout=timeout):
-            idx = future_to_index[future]
-            try:
-                results[idx] = future.result()
-            except Exception as exc:
-                # Store the exception instead of raising
-                results[idx] = exc
+        try:
+            for future in as_completed(future_to_index, timeout=timeout):
+                idx = future_to_index[future]
+                try:
+                    results[idx] = future.result()
+                except Exception as exc:
+                    # Store the exception instead of raising
+                    results[idx] = exc
+        except TimeoutError:
+            timeout_error = TimeoutError(f"Parallel processing timed out after {timeout} seconds")
+            for future, idx in future_to_index.items():
+                if results[idx] is _unset:
+                    if not future.done():
+                        future.cancel()
+                    results[idx] = timeout_error
 
-    return results
+    # Any unset slot indicates an unexpected executor issue.
+    finalized: list[R | Exception | None] = []
+    for value in results:
+        if value is _unset:
+            finalized.append(RuntimeError("parallel processing did not return a result"))
+        else:
+            finalized.append(cast(R | Exception | None, value))
+
+    return finalized
 
 
 def process_parallel_with_progress(
@@ -79,7 +95,7 @@ def process_parallel_with_progress(
     chunk_size: int = 10,
     progress_callback: Optional[Callable[[int, int], None]] = None,
     error_callback: Optional[Callable[[T, Exception], None]] = None,
-) -> List[R]:
+) -> List[Optional[R]]:
     """
     Process items in parallel with progress tracking.
 
@@ -108,17 +124,16 @@ def process_parallel_with_progress(
     if max_workers is None:
         max_workers = max(1, cpu_count() - 1)
 
+    del chunk_size  # Reserved for future map/chunk integration.
+
     executor_class = ThreadPoolExecutor if use_threads else ProcessPoolExecutor
 
-    results = [None] * len(items)
+    results: list[Optional[R]] = [None] * len(items)
     completed = 0
 
     with executor_class(max_workers=max_workers) as executor:
         # Submit all tasks with their indices
-        future_to_data = {
-            executor.submit(process_func, item): (idx, item)
-            for idx, item in enumerate(items)
-        }
+        future_to_data = {executor.submit(process_func, item): (idx, item) for idx, item in enumerate(items)}
 
         # Collect results with progress tracking
         for future in as_completed(future_to_data):
@@ -155,7 +170,7 @@ def batch_items(items: List[T], batch_size: int) -> Iterator[List[T]]:
         ...     process_batch(batch)
     """
     for i in range(0, len(items), batch_size):
-        yield items[i:i + batch_size]
+        yield items[i : i + batch_size]
 
 
 def process_batches_parallel(
@@ -200,11 +215,11 @@ def process_batches_parallel(
     )
 
     # Flatten results
-    results = []
+    results: list[R] = []
     for batch_result in batch_results:
         if isinstance(batch_result, list):
             results.extend(batch_result)
-        elif batch_result is not None:
+        elif batch_result is not None and not isinstance(batch_result, Exception):
             results.append(batch_result)
 
     return results
@@ -215,7 +230,7 @@ def map_parallel(
     items: List[T],
     max_workers: Optional[int] = None,
     use_threads: bool = True,
-) -> List[R]:
+) -> List[R | Exception | None]:
     """
     Simplified parallel map operation.
 
@@ -226,7 +241,8 @@ def map_parallel(
         use_threads: Use threads (default) or processes
 
     Returns:
-        List of results in original order
+        List of results in original order.
+        Failed items contain an Exception object.
 
     Example:
         >>> results = map_parallel(str.upper, ["hello", "world"])
@@ -269,4 +285,11 @@ def filter_parallel(
         use_threads=use_threads,
     )
 
-    return [item for item, keep in zip(items, results) if keep]
+    filtered: list[T] = []
+    for item, keep in zip(items, results):
+        if isinstance(keep, Exception):
+            continue
+        if keep:
+            filtered.append(item)
+
+    return filtered

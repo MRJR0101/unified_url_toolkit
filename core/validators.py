@@ -7,20 +7,20 @@ Consolidated from:
 - Multiple validation implementations across 8+ projects
 """
 
-import re
+from enum import Enum
 from typing import Tuple
 from urllib.parse import urlparse
-from enum import Enum
 
 from . import patterns
-
 
 # =============================================================================
 # ENUMS & CONSTANTS
 # =============================================================================
 
+
 class ValidationStatus(Enum):
     """Validation result statuses."""
+
     VALID = "valid"
     VALID_IPV4 = "valid_ipv4"
     INVALID_FORMAT = "invalid_format"
@@ -34,10 +34,53 @@ class ValidationStatus(Enum):
 # Common valid TLDs (extensible)
 # Source: LinkTools/core/validators.py + additions from CleanDomainsv2
 COMMON_TLDS = {
-    "com", "org", "net", "io", "gov", "edu", "co", "us", "dev", "ai", "ca", "uk",
-    "app", "info", "biz", "xyz", "site", "online", "store", "tv", "me", "tech",
-    "blog", "news", "de", "fr", "jp", "cn", "ru", "in", "br", "au", "nz", "it",
-    "es", "nl", "se", "no", "dk", "fi", "pl", "cz", "at", "ch", "be", "pt", "gr"
+    "com",
+    "org",
+    "net",
+    "io",
+    "gov",
+    "edu",
+    "co",
+    "us",
+    "dev",
+    "ai",
+    "ca",
+    "uk",
+    "app",
+    "info",
+    "biz",
+    "xyz",
+    "site",
+    "online",
+    "store",
+    "tv",
+    "me",
+    "tech",
+    "blog",
+    "news",
+    "de",
+    "fr",
+    "jp",
+    "cn",
+    "ru",
+    "in",
+    "br",
+    "au",
+    "nz",
+    "it",
+    "es",
+    "nl",
+    "se",
+    "no",
+    "dk",
+    "fi",
+    "pl",
+    "cz",
+    "at",
+    "ch",
+    "be",
+    "pt",
+    "gr",
 }
 
 # Invalid file extensions that shouldn't be treated as domains
@@ -50,6 +93,7 @@ LOOPBACK_PATTERNS = ["127.", "0.", "localhost", "::1"]
 # =============================================================================
 # CORE VALIDATION FUNCTIONS
 # =============================================================================
+
 
 def validate_domain(domain: str, allow_ipv4: bool = True) -> Tuple[bool, ValidationStatus]:
     """
@@ -114,8 +158,7 @@ def validate_domain(domain: str, allow_ipv4: bool = True) -> Tuple[bool, Validat
     return True, ValidationStatus.VALID
 
 
-def validate_url(url: str, check_scheme: bool = True,
-                 allowed_schemes: list[str] | None = None) -> Tuple[bool, str]:
+def validate_url(url: str, check_scheme: bool = True, allowed_schemes: list[str] | None = None) -> Tuple[bool, str]:
     """
     Validate a URL with optional scheme checking.
 
@@ -145,7 +188,6 @@ def validate_url(url: str, check_scheme: bool = True,
         allowed_schemes = ["http", "https", "ftp"]
 
     # Add scheme if missing (for parsing)
-    original_url = url
     if not patterns.has_scheme(url):
         if check_scheme:
             return False, "Missing URL scheme"
@@ -208,6 +250,7 @@ def is_valid_url(url: str, check_scheme: bool = True) -> bool:
 # SPECIALIZED VALIDATORS
 # =============================================================================
 
+
 def is_url_shortener(url: str) -> bool:
     """
     Check if URL is from a known URL shortener service.
@@ -260,8 +303,8 @@ def is_suspicious_domain(domain: str) -> Tuple[bool, list[str]]:
 # BATCH VALIDATION
 # =============================================================================
 
-def validate_domains_batch(domains: list[str],
-                          allow_ipv4: bool = True) -> dict[str, Tuple[bool, ValidationStatus]]:
+
+def validate_domains_batch(domains: list[str], allow_ipv4: bool = True) -> dict[str, Tuple[bool, ValidationStatus]]:
     """
     Validate multiple domains at once.
 
@@ -272,14 +315,10 @@ def validate_domains_batch(domains: list[str],
     Returns:
         Dictionary mapping domain -> (is_valid, status)
     """
-    return {
-        domain: validate_domain(domain, allow_ipv4)
-        for domain in domains
-    }
+    return {domain: validate_domain(domain, allow_ipv4) for domain in domains}
 
 
-def filter_valid_domains(domains: list[str],
-                        allow_ipv4: bool = True) -> list[str]:
+def filter_valid_domains(domains: list[str], allow_ipv4: bool = True) -> list[str]:
     """
     Filter list to only valid domains.
 
@@ -290,14 +329,10 @@ def filter_valid_domains(domains: list[str],
     Returns:
         List of valid domains only
     """
-    return [
-        domain for domain in domains
-        if is_valid_domain(domain, allow_ipv4)
-    ]
+    return [domain for domain in domains if is_valid_domain(domain, allow_ipv4)]
 
 
-def filter_valid_urls(urls: list[str],
-                     check_scheme: bool = True) -> list[str]:
+def filter_valid_urls(urls: list[str], check_scheme: bool = True) -> list[str]:
     """
     Filter list to only valid URLs.
 
@@ -308,7 +343,4 @@ def filter_valid_urls(urls: list[str],
     Returns:
         List of valid URLs only
     """
-    return [
-        url for url in urls
-        if is_valid_url(url, check_scheme)
-    ]
+    return [url for url in urls if is_valid_url(url, check_scheme)]

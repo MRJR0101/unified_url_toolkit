@@ -2,21 +2,36 @@
 Configuration module for URL toolkit settings.
 """
 
-from .settings import *
+from .settings import (
+    ALLOW_IPV4_DOMAINS,
+    COMMON_TLDS,
+    DEFAULT_ALLOWED_SCHEMES,
+    DEFAULT_ENCODING,
+    DEFAULT_HTTP_TIMEOUT,
+    DEFAULT_MAX_RETRIES,
+    DEFAULT_RETRY_DELAY,
+    DEFAULT_UNIQUE_ONLY,
+    DEFAULT_WORKERS,
+    SUSPICIOUS_TLDS,
+    TRACKING_PARAMS,
+    URL_SHORTENER_DOMAINS,
+    get_setting,
+    update_setting,
+)
 
 __all__ = [
-    'DEFAULT_ENCODING',
-    'DEFAULT_HTTP_TIMEOUT',
-    'DEFAULT_MAX_RETRIES',
-    'DEFAULT_RETRY_DELAY',
-    'DEFAULT_WORKERS',
-    'ALLOW_IPV4_DOMAINS',
-    'DEFAULT_ALLOWED_SCHEMES',
-    'DEFAULT_UNIQUE_ONLY',
-    'COMMON_TLDS',
-    'SUSPICIOUS_TLDS',
-    'URL_SHORTENER_DOMAINS',
-    'TRACKING_PARAMS',
-    'get_setting',
-    'update_setting',
+    "DEFAULT_ENCODING",
+    "DEFAULT_HTTP_TIMEOUT",
+    "DEFAULT_MAX_RETRIES",
+    "DEFAULT_RETRY_DELAY",
+    "DEFAULT_WORKERS",
+    "ALLOW_IPV4_DOMAINS",
+    "DEFAULT_ALLOWED_SCHEMES",
+    "DEFAULT_UNIQUE_ONLY",
+    "COMMON_TLDS",
+    "SUSPICIOUS_TLDS",
+    "URL_SHORTENER_DOMAINS",
+    "TRACKING_PARAMS",
+    "get_setting",
+    "update_setting",
 ]

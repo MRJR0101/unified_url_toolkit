@@ -6,11 +6,9 @@ and pure functions discovered via AST analysis.
 
 import importlib.util
 import sys
-import tempfile
 from pathlib import Path
 
 import pytest
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -34,7 +32,7 @@ def _load_module():
     return mod
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def mod():
     """Load the module once for all tests."""
     return _load_module()
@@ -128,4 +126,3 @@ class TestIOFunctions:
     def test_extract_images_exists(self, mod):
         """Module has extract_images."""
         assert hasattr(mod, "extract_images")
-

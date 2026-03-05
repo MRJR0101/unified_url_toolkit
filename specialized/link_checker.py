@@ -4,38 +4,60 @@ Comprehensive link checking with retries, timeouts, and detailed reporting.
 Validates URLs by making HTTP requests and analyzing responses.
 """
 
-from typing import List, Optional, Dict, Tuple
-from dataclasses import dataclass, field
+import time
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
-import requests
-import time
+from typing import TYPE_CHECKING, List, Optional
 
-from ..config.settings import (
-    DEFAULT_HTTP_TIMEOUT,
-    DEFAULT_MAX_RETRIES,
-    DEFAULT_RETRY_DELAY,
-    DEFAULT_USER_AGENT,
-)
+import requests  # type: ignore[import-untyped]
 
+if TYPE_CHECKING:
+    from ..config.settings import (
+        DEFAULT_HTTP_TIMEOUT,
+        DEFAULT_MAX_RETRIES,
+        DEFAULT_RETRY_DELAY,
+        DEFAULT_USER_AGENT,
+        VERIFY_SSL,
+    )
+else:
+    try:
+        from ..config.settings import (
+            DEFAULT_HTTP_TIMEOUT,
+            DEFAULT_MAX_RETRIES,
+            DEFAULT_RETRY_DELAY,
+            DEFAULT_USER_AGENT,
+            VERIFY_SSL,
+        )
+    except ImportError:
+        from config.settings import (
+            DEFAULT_HTTP_TIMEOUT,
+            DEFAULT_MAX_RETRIES,
+            DEFAULT_RETRY_DELAY,
+            DEFAULT_USER_AGENT,
+            VERIFY_SSL,
+        )
 
 # =============================================================================
 # ENUMS
 # =============================================================================
 
+
 class LinkStatus(Enum):
     """Link status categories."""
-    ALIVE = 'alive'
-    DEAD = 'dead'
-    REDIRECT = 'redirect'
-    TIMEOUT = 'timeout'
-    ERROR = 'error'
-    UNKNOWN = 'unknown'
+
+    ALIVE = "alive"
+    DEAD = "dead"
+    REDIRECT = "redirect"
+    TIMEOUT = "timeout"
+    ERROR = "error"
+    UNKNOWN = "unknown"
 
 
 # =============================================================================
 # DATA CLASSES
 # =============================================================================
+
 
 @dataclass
 class LinkCheckResult:
@@ -67,6 +89,13 @@ class LinkCheckResult:
     is_broken: bool = False
     needs_attention: bool = False
 
+    def to_dict(self) -> dict:
+        """Convert result to a JSON-serializable dictionary."""
+        data = asdict(self)
+        data["status"] = self.status.value
+        data["checked_at"] = self.checked_at.isoformat()
+        return data
+
 
 @dataclass
 class LinkCheckReport:
@@ -91,19 +120,37 @@ class LinkCheckReport:
     broken_links: List[str] = field(default_factory=list)
     slow_links: List[str] = field(default_factory=list)  # > 3 seconds
 
+    def to_dict(self) -> dict:
+        """Convert report to a JSON-serializable dictionary."""
+        return {
+            "total_links": self.total_links,
+            "alive_links": self.alive_links,
+            "dead_links": self.dead_links,
+            "redirect_links": self.redirect_links,
+            "timeout_links": self.timeout_links,
+            "error_links": self.error_links,
+            "total_time_seconds": self.total_time_seconds,
+            "average_response_time_ms": self.average_response_time_ms,
+            "success_rate": self.success_rate,
+            "broken_links": self.broken_links,
+            "slow_links": self.slow_links,
+            "results": [result.to_dict() for result in self.results],
+        }
+
 
 # =============================================================================
 # LINK CHECKING
 # =============================================================================
 
+
 def check_link(
     url: str,
-    method: str = 'HEAD',
+    method: str = "HEAD",
     timeout: int = DEFAULT_HTTP_TIMEOUT,
     max_retries: int = DEFAULT_MAX_RETRIES,
     retry_delay: float = DEFAULT_RETRY_DELAY,
     follow_redirects: bool = True,
-    verify_ssl: bool = True,
+    verify_ssl: bool = VERIFY_SSL,
     user_agent: str = DEFAULT_USER_AGENT,
 ) -> LinkCheckResult:
     """
@@ -129,15 +176,15 @@ def check_link(
         >>> print(f"Status Code: {result.status_code}")
     """
     # Ensure URL has scheme
-    if not url.startswith(('http://', 'https://')):
-        url = 'https://' + url
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
 
     result = LinkCheckResult(
         url=url,
         status=LinkStatus.UNKNOWN,
     )
 
-    headers = {'User-Agent': user_agent}
+    headers = {"User-Agent": user_agent}
 
     # Retry loop
     for attempt in range(1, max_retries + 1):
@@ -163,7 +210,7 @@ def check_link(
             result.final_url = response.url
 
             # Check redirects
-            if hasattr(response, 'history') and response.history:
+            if hasattr(response, "history") and response.history:
                 result.redirect_count = len(response.history)
                 result.redirect_chain = [r.url for r in response.history]
                 result.status = LinkStatus.REDIRECT
@@ -189,8 +236,8 @@ def check_link(
 
         except requests.exceptions.Timeout:
             result.status = LinkStatus.TIMEOUT
-            result.error_message = 'Request timed out'
-            result.error_type = 'Timeout'
+            result.error_message = "Request timed out"
+            result.error_type = "Timeout"
             result.needs_attention = True
 
             # Retry on timeout
@@ -200,15 +247,15 @@ def check_link(
 
         except requests.exceptions.SSLError as e:
             result.status = LinkStatus.ERROR
-            result.error_message = f'SSL Error: {str(e)}'
-            result.error_type = 'SSLError'
+            result.error_message = f"SSL Error: {str(e)}"
+            result.error_type = "SSLError"
             result.needs_attention = True
             break
 
         except requests.exceptions.ConnectionError as e:
             result.status = LinkStatus.ERROR
-            result.error_message = f'Connection Error: {str(e)}'
-            result.error_type = 'ConnectionError'
+            result.error_message = f"Connection Error: {str(e)}"
+            result.error_type = "ConnectionError"
             result.is_broken = True
 
             # Retry on connection error
@@ -230,10 +277,7 @@ def check_link(
     return result
 
 
-def check_link_with_fallback(
-    url: str,
-    **kwargs
-) -> LinkCheckResult:
+def check_link_with_fallback(url: str, **kwargs) -> LinkCheckResult:
     """
     Check link with HEAD, fallback to GET if needed.
 
@@ -247,11 +291,11 @@ def check_link_with_fallback(
         LinkCheckResult object
     """
     # Try HEAD first
-    result = check_link(url, method='HEAD', **kwargs)
+    result = check_link(url, method="HEAD", **kwargs)
 
     # If HEAD failed with 405 Method Not Allowed, try GET
     if result.status_code == 405 or result.status == LinkStatus.ERROR:
-        result = check_link(url, method='GET', **kwargs)
+        result = check_link(url, method="GET", **kwargs)
 
     return result
 
@@ -260,11 +304,12 @@ def check_link_with_fallback(
 # BATCH LINK CHECKING
 # =============================================================================
 
+
 def check_multiple_links(
     urls: List[str],
     max_workers: int = 10,
-    method: str = 'HEAD',
-    timeout: int = 10,
+    method: str = "HEAD",
+    timeout: int = DEFAULT_HTTP_TIMEOUT,
     max_retries: int = 2,
     show_progress: bool = True,
 ) -> LinkCheckReport:
@@ -293,18 +338,12 @@ def check_multiple_links(
     report = LinkCheckReport(total_links=len(urls))
     start_time = time.time()
 
-    results = [None] * len(urls)
+    results_by_index: dict[int, LinkCheckResult] = {}
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         # Submit all tasks
         future_to_index = {
-            executor.submit(
-                check_link_with_fallback,
-                url,
-                method=method,
-                timeout=timeout,
-                max_retries=max_retries
-            ): idx
+            executor.submit(check_link_with_fallback, url, method=method, timeout=timeout, max_retries=max_retries): idx
             for idx, url in enumerate(urls)
         }
 
@@ -314,10 +353,10 @@ def check_multiple_links(
             idx = future_to_index[future]
 
             try:
-                results[idx] = future.result()
+                results_by_index[idx] = future.result()
             except Exception as e:
                 # Create error result
-                results[idx] = LinkCheckResult(
+                results_by_index[idx] = LinkCheckResult(
                     url=urls[idx],
                     status=LinkStatus.ERROR,
                     error_message=str(e),
@@ -328,10 +367,24 @@ def check_multiple_links(
             completed += 1
 
             if show_progress and completed % 10 == 0:
-                print(f"Progress: {completed}/{len(urls)}", end='\r')
+                print(f"Progress: {completed}/{len(urls)}", end="\r")
 
     if show_progress:
         print()  # New line after progress
+
+    results: List[LinkCheckResult] = [
+        results_by_index.get(
+            idx,
+            LinkCheckResult(
+                url=url,
+                status=LinkStatus.ERROR,
+                error_message="link check did not return a result",
+                error_type="MissingResult",
+                is_broken=True,
+            ),
+        )
+        for idx, url in enumerate(urls)
+    ]
 
     # Build report
     report.results = results
@@ -377,6 +430,7 @@ def check_multiple_links(
 # REPORT FORMATTING
 # =============================================================================
 
+
 def format_link_check_report(report: LinkCheckReport) -> str:
     """
     Format link check report as human-readable string.
@@ -394,12 +448,15 @@ def format_link_check_report(report: LinkCheckReport) -> str:
     lines.append(f"Total Time: {report.total_time_seconds:.1f}s")
     lines.append("")
 
+    def pct(count: int) -> float:
+        return (count / report.total_links * 100) if report.total_links else 0.0
+
     lines.append("Status Breakdown:")
-    lines.append(f"  ✓ Alive:    {report.alive_links} ({report.alive_links/report.total_links*100:.1f}%)")
-    lines.append(f"  ↻ Redirect: {report.redirect_links} ({report.redirect_links/report.total_links*100:.1f}%)")
-    lines.append(f"  ✗ Dead:     {report.dead_links} ({report.dead_links/report.total_links*100:.1f}%)")
-    lines.append(f"  ⏱ Timeout:  {report.timeout_links} ({report.timeout_links/report.total_links*100:.1f}%)")
-    lines.append(f"  ⚠ Error:    {report.error_links} ({report.error_links/report.total_links*100:.1f}%)")
+    lines.append(f"  Alive:    {report.alive_links} ({pct(report.alive_links):.1f}%)")
+    lines.append(f"  Redirect: {report.redirect_links} ({pct(report.redirect_links):.1f}%)")
+    lines.append(f"  Dead:     {report.dead_links} ({pct(report.dead_links):.1f}%)")
+    lines.append(f"  Timeout:  {report.timeout_links} ({pct(report.timeout_links):.1f}%)")
+    lines.append(f"  Error:    {report.error_links} ({pct(report.error_links):.1f}%)")
     lines.append("")
 
     lines.append(f"Success Rate: {report.success_rate:.1f}%")
@@ -409,7 +466,7 @@ def format_link_check_report(report: LinkCheckReport) -> str:
         lines.append("")
         lines.append(f"Broken Links ({len(report.broken_links)}):")
         for url in report.broken_links[:10]:  # Show first 10
-            lines.append(f"  • {url}")
+            lines.append(f"  - {url}")
         if len(report.broken_links) > 10:
             lines.append(f"  ... and {len(report.broken_links) - 10} more")
 
@@ -417,8 +474,8 @@ def format_link_check_report(report: LinkCheckReport) -> str:
         lines.append("")
         lines.append(f"Slow Links ({len(report.slow_links)} > 3s):")
         for url in report.slow_links[:5]:  # Show first 5
-            lines.append(f"  • {url}")
+            lines.append(f"  - {url}")
         if len(report.slow_links) > 5:
             lines.append(f"  ... and {len(report.slow_links) - 5} more")
 
-    return '\n'.join(lines)
+    return "\n".join(lines)

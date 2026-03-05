@@ -9,16 +9,25 @@ Analyzes HTTP responses including:
 - Custom header analysis
 """
 
-from typing import Dict, Optional, List, Tuple, Any
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
-import requests
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from urllib.parse import urlparse
 
+import requests  # type: ignore[import-untyped]
+
+if TYPE_CHECKING:
+    from ..config.settings import DEFAULT_HTTP_TIMEOUT, DEFAULT_USER_AGENT, VERIFY_SSL
+else:
+    try:
+        from ..config.settings import DEFAULT_HTTP_TIMEOUT, DEFAULT_USER_AGENT, VERIFY_SSL
+    except ImportError:
+        from config.settings import DEFAULT_HTTP_TIMEOUT, DEFAULT_USER_AGENT, VERIFY_SSL
 
 # =============================================================================
 # DATA CLASSES
 # =============================================================================
+
 
 @dataclass
 class HTTPResponse:
@@ -71,6 +80,12 @@ class HTTPResponse:
     # Error info
     error: Optional[str] = None
 
+    def to_dict(self) -> dict:
+        """Convert response model to a JSON-serializable dictionary."""
+        data = asdict(self)
+        data["timestamp"] = self.timestamp.isoformat()
+        return data
+
 
 @dataclass
 class HeaderAnalysis:
@@ -96,7 +111,6 @@ STATUS_CODE_NAMES = {
     101: "Switching Protocols",
     102: "Processing",
     103: "Early Hints",
-
     # 2xx Success
     200: "OK",
     201: "Created",
@@ -105,7 +119,6 @@ STATUS_CODE_NAMES = {
     204: "No Content",
     205: "Reset Content",
     206: "Partial Content",
-
     # 3xx Redirection
     300: "Multiple Choices",
     301: "Moved Permanently",
@@ -114,7 +127,6 @@ STATUS_CODE_NAMES = {
     304: "Not Modified",
     307: "Temporary Redirect",
     308: "Permanent Redirect",
-
     # 4xx Client Error
     400: "Bad Request",
     401: "Unauthorized",
@@ -126,7 +138,6 @@ STATUS_CODE_NAMES = {
     409: "Conflict",
     410: "Gone",
     429: "Too Many Requests",
-
     # 5xx Server Error
     500: "Internal Server Error",
     501: "Not Implemented",
@@ -161,12 +172,13 @@ def get_status_name(status_code: int) -> str:
 # HTTP RESPONSE FETCHER
 # =============================================================================
 
+
 def fetch_http_response(
     url: str,
     method: str = "GET",
-    timeout: int = 10,
+    timeout: int = DEFAULT_HTTP_TIMEOUT,
     allow_redirects: bool = True,
-    verify_ssl: bool = True,
+    verify_ssl: bool = VERIFY_SSL,
     user_agent: Optional[str] = None,
 ) -> HTTPResponse:
     """
@@ -189,12 +201,10 @@ def fetch_http_response(
         >>> print(f"Server: {response.server}")
         >>> print(f"CORS: {response.cors_allowed}")
     """
-    if not url.startswith(('http://', 'https://')):
-        url = 'https://' + url
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
 
-    headers = {}
-    if user_agent:
-        headers['User-Agent'] = user_agent
+    headers = {"User-Agent": user_agent or DEFAULT_USER_AGENT}
 
     start_time = datetime.now()
 
@@ -222,41 +232,44 @@ def fetch_http_response(
         )
 
         # Parse URL scheme
-        http_response.is_https = urlparse(url).scheme == 'https'
+        http_response.is_https = urlparse(url).scheme == "https"
 
         # Extract server info
-        http_response.server = response.headers.get('Server')
-        http_response.powered_by = response.headers.get('X-Powered-By')
+        http_response.server = response.headers.get("Server")
+        http_response.powered_by = response.headers.get("X-Powered-By")
 
         # Extract content info
-        http_response.content_type = response.headers.get('Content-Type')
-        content_length = response.headers.get('Content-Length')
+        http_response.content_type = response.headers.get("Content-Type")
+        content_length = response.headers.get("Content-Length")
         if content_length:
-            http_response.content_length = int(content_length)
-        http_response.content_encoding = response.headers.get('Content-Encoding')
+            try:
+                http_response.content_length = int(content_length)
+            except ValueError:
+                http_response.content_length = None
+        http_response.content_encoding = response.headers.get("Content-Encoding")
 
         # Analyze CORS
         cors_analysis = analyze_cors(response.headers)
-        http_response.cors_allowed = cors_analysis['allowed']
-        http_response.cors_origin = cors_analysis['origin']
-        http_response.cors_methods = cors_analysis['methods']
-        http_response.cors_headers = cors_analysis['headers']
+        http_response.cors_allowed = cors_analysis["allowed"]
+        http_response.cors_origin = cors_analysis["origin"]
+        http_response.cors_methods = cors_analysis["methods"]
+        http_response.cors_headers = cors_analysis["headers"]
 
         # Analyze security headers
         security = analyze_security_headers(response.headers)
         http_response.security_headers = security
-        http_response.hsts_enabled = 'Strict-Transport-Security' in response.headers
+        http_response.hsts_enabled = "Strict-Transport-Security" in response.headers
 
         # Cache headers
-        http_response.cache_control = response.headers.get('Cache-Control')
-        http_response.expires = response.headers.get('Expires')
-        http_response.etag = response.headers.get('ETag')
-        http_response.last_modified = response.headers.get('Last-Modified')
+        http_response.cache_control = response.headers.get("Cache-Control")
+        http_response.expires = response.headers.get("Expires")
+        http_response.etag = response.headers.get("ETag")
+        http_response.last_modified = response.headers.get("Last-Modified")
 
         # Redirect detection
         http_response.is_redirect = 300 <= response.status_code < 400
         if http_response.is_redirect:
-            http_response.redirect_location = response.headers.get('Location')
+            http_response.redirect_location = response.headers.get("Location")
 
         return http_response
 
@@ -279,6 +292,7 @@ def fetch_http_response(
 # CORS ANALYSIS
 # =============================================================================
 
+
 def analyze_cors(headers: Dict[str, str]) -> Dict[str, Any]:
     """
     Analyze CORS headers.
@@ -289,17 +303,17 @@ def analyze_cors(headers: Dict[str, str]) -> Dict[str, Any]:
     Returns:
         Dictionary with CORS analysis
     """
-    cors_origin = headers.get('Access-Control-Allow-Origin')
-    cors_methods = headers.get('Access-Control-Allow-Methods', '')
-    cors_headers = headers.get('Access-Control-Allow-Headers', '')
+    cors_origin = headers.get("Access-Control-Allow-Origin")
+    cors_methods = headers.get("Access-Control-Allow-Methods", "")
+    cors_headers = headers.get("Access-Control-Allow-Headers", "")
 
     return {
-        'allowed': bool(cors_origin),
-        'origin': cors_origin,
-        'methods': [m.strip() for m in cors_methods.split(',') if m.strip()],
-        'headers': [h.strip() for h in cors_headers.split(',') if h.strip()],
-        'credentials': headers.get('Access-Control-Allow-Credentials') == 'true',
-        'max_age': headers.get('Access-Control-Max-Age'),
+        "allowed": bool(cors_origin),
+        "origin": cors_origin,
+        "methods": [m.strip() for m in cors_methods.split(",") if m.strip()],
+        "headers": [h.strip() for h in cors_headers.split(",") if h.strip()],
+        "credentials": headers.get("Access-Control-Allow-Credentials") == "true",
+        "max_age": headers.get("Access-Control-Max-Age"),
     }
 
 
@@ -308,13 +322,13 @@ def analyze_cors(headers: Dict[str, str]) -> Dict[str, Any]:
 # =============================================================================
 
 SECURITY_HEADERS = {
-    'Strict-Transport-Security': 'HSTS',
-    'Content-Security-Policy': 'CSP',
-    'X-Frame-Options': 'Frame Protection',
-    'X-Content-Type-Options': 'MIME Sniffing Protection',
-    'X-XSS-Protection': 'XSS Protection',
-    'Referrer-Policy': 'Referrer Policy',
-    'Permissions-Policy': 'Permissions Policy',
+    "Strict-Transport-Security": "HSTS",
+    "Content-Security-Policy": "CSP",
+    "X-Frame-Options": "Frame Protection",
+    "X-Content-Type-Options": "MIME Sniffing Protection",
+    "X-XSS-Protection": "XSS Protection",
+    "Referrer-Policy": "Referrer Policy",
+    "Permissions-Policy": "Permissions Policy",
 }
 
 
@@ -360,6 +374,7 @@ def get_missing_security_headers(headers: Dict[str, str]) -> List[str]:
 # HEADER CATEGORIZATION
 # =============================================================================
 
+
 def categorize_headers(headers: Dict[str, str]) -> HeaderAnalysis:
     """
     Categorize response headers into groups.
@@ -378,25 +393,36 @@ def categorize_headers(headers: Dict[str, str]) -> HeaderAnalysis:
 
     # Standard headers
     standard_header_names = {
-        'Date', 'Server', 'Content-Type', 'Content-Length',
-        'Connection', 'Keep-Alive', 'Transfer-Encoding',
-        'Content-Encoding', 'Vary', 'Location',
+        "Date",
+        "Server",
+        "Content-Type",
+        "Content-Length",
+        "Connection",
+        "Keep-Alive",
+        "Transfer-Encoding",
+        "Content-Encoding",
+        "Vary",
+        "Location",
     }
 
     # CORS headers
     cors_header_names = {
-        'Access-Control-Allow-Origin',
-        'Access-Control-Allow-Methods',
-        'Access-Control-Allow-Headers',
-        'Access-Control-Allow-Credentials',
-        'Access-Control-Max-Age',
-        'Access-Control-Expose-Headers',
+        "Access-Control-Allow-Origin",
+        "Access-Control-Allow-Methods",
+        "Access-Control-Allow-Headers",
+        "Access-Control-Allow-Credentials",
+        "Access-Control-Max-Age",
+        "Access-Control-Expose-Headers",
     }
 
     # Cache headers
     cache_header_names = {
-        'Cache-Control', 'Expires', 'ETag',
-        'Last-Modified', 'Age', 'Pragma',
+        "Cache-Control",
+        "Expires",
+        "ETag",
+        "Last-Modified",
+        "Age",
+        "Pragma",
     }
 
     for header, value in headers.items():
@@ -418,7 +444,7 @@ def categorize_headers(headers: Dict[str, str]) -> HeaderAnalysis:
         cors_headers=cors,
         cache_headers=cache,
         missing_security_headers=get_missing_security_headers(headers),
-        unusual_headers=[h for h in custom if h.startswith('X-')],
+        unusual_headers=[h for h in custom if h.startswith("X-")],
     )
 
 
@@ -426,10 +452,11 @@ def categorize_headers(headers: Dict[str, str]) -> HeaderAnalysis:
 # BATCH ANALYSIS
 # =============================================================================
 
+
 def analyze_multiple_urls(
     urls: List[str],
     method: str = "HEAD",
-    timeout: int = 5,
+    timeout: int = DEFAULT_HTTP_TIMEOUT,
     max_workers: int = 10,
 ) -> List[HTTPResponse]:
     """
@@ -446,20 +473,19 @@ def analyze_multiple_urls(
     """
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    responses = [None] * len(urls)
+    responses_by_index: dict[int, HTTPResponse] = {}
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_to_index = {
-            executor.submit(fetch_http_response, url, method, timeout): idx
-            for idx, url in enumerate(urls)
+            executor.submit(fetch_http_response, url, method, timeout): idx for idx, url in enumerate(urls)
         }
 
         for future in as_completed(future_to_index):
             idx = future_to_index[future]
             try:
-                responses[idx] = future.result()
+                responses_by_index[idx] = future.result()
             except Exception as e:
-                responses[idx] = HTTPResponse(
+                responses_by_index[idx] = HTTPResponse(
                     url=urls[idx],
                     final_url=urls[idx],
                     status_code=0,
@@ -469,4 +495,18 @@ def analyze_multiple_urls(
                     error=str(e),
                 )
 
-    return responses
+    return [
+        responses_by_index.get(
+            idx,
+            HTTPResponse(
+                url=url,
+                final_url=url,
+                status_code=0,
+                status_category="Error",
+                status_name="Analysis Failed",
+                response_time_ms=0,
+                error="analysis did not return a result",
+            ),
+        )
+        for idx, url in enumerate(urls)
+    ]

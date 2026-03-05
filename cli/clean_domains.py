@@ -12,66 +12,62 @@ Replaces:
 """
 
 import argparse
+import importlib
 import sys
 from pathlib import Path
 
-# Import from unified toolkit
-sys.path.insert(0, str(Path(__file__).parent.parent))
-from core.normalizers import clean_domain_list
-from io.readers import read_urls_from_file
-from io.writers import write_domains_to_file
+
+def _load_toolkit():
+    """Import toolkit modules with package-first, path-fallback behavior."""
+    try:
+        normalizers = importlib.import_module("unified_url_toolkit.core.normalizers")
+        readers = importlib.import_module("unified_url_toolkit.io.readers")
+        writers = importlib.import_module("unified_url_toolkit.io.writers")
+    except ModuleNotFoundError:
+        project_root = Path(__file__).resolve().parents[1]
+        workspace_root = project_root.parent
+        if str(workspace_root) not in sys.path:
+            sys.path.insert(0, str(workspace_root))
+        normalizers = importlib.import_module("unified_url_toolkit.core.normalizers")
+        readers = importlib.import_module("unified_url_toolkit.io.readers")
+        writers = importlib.import_module("unified_url_toolkit.io.writers")
+
+    return normalizers.clean_domain_list, readers.read_urls_from_file, writers.write_domains_to_file
 
 
 def main():
+    clean_domain_list, read_urls_from_file, write_domains_to_file = _load_toolkit()
+
     parser = argparse.ArgumentParser(
-        description='Clean and normalize domains from a file',
+        description="Clean and normalize domains from a file",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog='''
+        epilog="""
 Examples:
   %(prog)s raw_domains.txt -o cleaned.txt
   %(prog)s input.txt --strip-www --sort
   %(prog)s domains.txt -o output.txt --strip-subdomain
-        '''
+        """,
     )
 
     parser.add_argument(
-        'input',
+        "input",
         type=str,
-        nargs='?',
-        default='raw_domains.txt',
-        help='Input file with domains/URLs (default: raw_domains.txt)'
+        nargs="?",
+        default="raw_domains.txt",
+        help="Input file with domains/URLs (default: raw_domains.txt)",
     )
 
     parser.add_argument(
-        '-o', '--output',
-        type=str,
-        default='domains.txt',
-        help='Output file for cleaned domains (default: domains.txt)'
+        "-o", "--output", type=str, default="domains.txt", help="Output file for cleaned domains (default: domains.txt)"
     )
 
-    parser.add_argument(
-        '--strip-www',
-        action='store_true',
-        help='Remove www. prefix from domains'
-    )
+    parser.add_argument("--strip-www", action="store_true", help="Remove www. prefix from domains")
 
-    parser.add_argument(
-        '--strip-subdomain',
-        action='store_true',
-        help='Keep only base domain (remove all subdomains)'
-    )
+    parser.add_argument("--strip-subdomain", action="store_true", help="Keep only base domain (remove all subdomains)")
 
-    parser.add_argument(
-        '--sort',
-        action='store_true',
-        help='Sort domains alphabetically'
-    )
+    parser.add_argument("--sort", action="store_true", help="Sort domains alphabetically")
 
-    parser.add_argument(
-        '--keep-duplicates',
-        action='store_true',
-        help='Keep duplicate domains (default: remove)'
-    )
+    parser.add_argument("--keep-duplicates", action="store_true", help="Keep duplicate domains (default: remove)")
 
     args = parser.parse_args()
 
@@ -81,17 +77,17 @@ Examples:
         print(f"[ERROR] Input file not found: {input_path.resolve()}")
 
         # Helpful hints
-        here = Path('.').resolve()
-        candidates = list(here.glob('*.txt'))
+        here = Path(".").resolve()
+        candidates = list(here.glob("*.txt"))
         if candidates:
             print("[HINT] Text files in current folder:")
             for c in candidates[:10]:
                 print(f"  - {c.name}")
 
-        print(f"\nFix by either:")
+        print("\nFix by either:")
         print(f"  - placing your file at {input_path.resolve()}")
-        print(f"  - OR passing the correct path:")
-        print(f"    python {Path(__file__).name} \"C:\\path\\to\\yourfile.txt\"")
+        print("  - OR passing the correct path:")
+        print(f'    python {Path(__file__).name} "C:\\path\\to\\yourfile.txt"')
         sys.exit(2)
 
     # =========================================================================
@@ -107,7 +103,7 @@ Examples:
         strip_www=args.strip_www,
         strip_subdomain=args.strip_subdomain,
         remove_duplicates=not args.keep_duplicates,
-        sort=args.sort
+        sort=args.sort,
     )
 
     # Write output
@@ -119,5 +115,5 @@ Examples:
     print(f"     Kept: {count} domains | Discarded: {len(raw_items) - count}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -1,125 +1,23 @@
-# examples
+# Examples
 
-**Category:** <!-- TODO: Add category (e.g., 06_URLs) -->
-**Status:** Production
-
-> Advanced usage examples showing all features of Unified URL Toolkit.
-
-## Overview
-
-**What it does:**
-This demonstrates the complete functionality including:
-- Core extraction, validation, normalization
-- Parallel processing
-- Progress tracking
-- Error handling
-- Analysis and categorization
-
-**What it does NOT do:**
-<!-- TODO: Describe boundaries to prevent wrong-tool confusion -->
-
-## Use Cases
-
-<!-- TODO: Add 2-4 concrete scenarios -->
-- 
-
-## Features
-
-- Core extraction, validation, normalization
-- Parallel processing
-- Progress tracking
-- Error handling
-- Analysis and categorization
-
-## Requirements
-
-- Python 3.8+
-- Windows 10/11
-- Third-party: unified_url_toolkit
-
-## Quick Start
-
-```powershell
-cd C:\Dev\PROJECTS\00_PyToolbelt\06_URLs\unified_url_toolkit\examples
-python advanced_usage.py --help
-```
-
-**First run:**
-```powershell
-python advanced_usage.py --dry-run
-```
-
-## Usage
-
-```powershell
-# Basic usage
-python advanced_usage.py --dry-run
-
-# <!-- TODO: Add real usage examples -->
-```
-
-## Input / Output
-
-**Expects:**
-<!-- TODO: Describe input format and sources -->
-
-**Creates:**
-<!-- TODO: Describe output files and locations -->
-
-## Pipeline Position
-
-**Fed by:** <!-- TODO: Upstream tools -->
-**Feeds into:** <!-- TODO: Downstream tools -->
-
-## Hardcoded Paths
-
-| Line | Current Value | Purpose |
-|------|---------------|---------|
-| 155 | `sample_urls.txt` | <!-- TODO: Describe purpose --> |
+Reference scripts for common and advanced toolkit workflows.
 
 ## Files
+- `basic_usage.py`
+- `advanced_usage.py`
+- `specialized_modules.py`
 
-| File | Lines | Purpose |
-|------|-------|---------|
-| `advanced_usage.py` | 282 | Python script |
-| `basic_usage.py` | 196 | Python script |
-| `pyproject.toml` | 21 | Project configuration and dependencies |
-| `requirements.txt` | 7 | Python dependencies |
-| `specialized_modules.py` | 395 | Python script |
+## How To Run
+```powershell
+uv run python examples\basic_usage.py
+uv run python examples\advanced_usage.py
+uv run python examples\specialized_modules.py
+```
 
-## Safety & Reliability
+## Audience
+- contributors learning module contracts quickly
+- users validating behavior before integration
 
-<!-- TODO: Describe dry-run mode, backup behavior, failure handling -->
-
-## License & Contact
-
-Internal tool. Maintainer: MR
-
----
-*Part of PyToolbelt -- Zero-dependency Windows utilities*
-
-<!-- ReadmeForge: The following sections were auto-appended. Move them to the correct position per the 21-section blueprint. -->
-
-## How It Works
-
-<!-- TODO: Add a ## How It Works section with numbered steps describing the internal processing flow from input to output. -->
-
-
-## Example Output
-
-<!-- TODO: Add a ## Example Output section with a fenced code block showing realistic console output from a typical run. -->
-
-
-## Logging & Observability
-
-<!-- TODO: Add a ## Logging section describing: where logs are written, log format, verbosity flags, and any run artifacts produced. -->
-
-
-## Troubleshooting / FAQ
-
-<!-- TODO: Add a ## Troubleshooting section with Problem/Fix pairs for the most common errors. Include known limitations. -->
-
-
-## Versioning / Roadmap
-
-<!-- TODO: Add a ## Versioning section with the current version number and a roadmap of planned features. -->
+## Related Docs
+- [Usage Guide](../docs/USAGE.md)
+- [Vision And Plan](../docs/VISION_AND_PLAN.md)

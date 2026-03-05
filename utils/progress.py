@@ -7,9 +7,9 @@ Consolidated from:
 - Multiple CLI tools with custom progress tracking
 """
 
-from typing import Optional, Callable
-from datetime import datetime, timedelta
 import sys
+from datetime import datetime, timedelta
+from typing import Callable
 
 
 class ProgressBar:
@@ -57,7 +57,7 @@ class ProgressBar:
 
     def __exit__(self, *args):
         """Context manager exit - print final newline."""
-        self.file.write('\n')
+        self.file.write("\n")
         self.file.flush()
 
     def update(self, n: int = 1):
@@ -77,7 +77,7 @@ class ProgressBar:
 
         percent = min(100, int(100 * self.current / self.total))
         filled = int(self.width * self.current / self.total)
-        bar = '█' * filled + '░' * (self.width - filled)
+        bar = "#" * filled + "-" * (self.width - filled)
 
         # Build progress string
         progress_str = f"\r{self.desc}{' ' if self.desc else ''}"
@@ -151,7 +151,7 @@ class SimpleProgress:
         self.file.flush()
 
         if self.current == self.total:
-            self.file.write('\n')
+            self.file.write("\n")
             self.file.flush()
 
 
@@ -195,7 +195,7 @@ def create_progress_callback(
             last_update[0] = completed
 
             if completed == total_items:
-                sys.stdout.write('\n')
+                sys.stdout.write("\n")
                 sys.stdout.flush()
 
     return callback
@@ -221,5 +221,5 @@ def print_progress_simple(current: int, total: int, prefix: str = ""):
     sys.stdout.flush()
 
     if current == total:
-        sys.stdout.write('\n')
+        sys.stdout.write("\n")
         sys.stdout.flush()

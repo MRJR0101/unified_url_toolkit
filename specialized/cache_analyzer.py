@@ -10,16 +10,16 @@ Analyzes caching behavior including:
 - Cache freshness calculation
 """
 
-from typing import Optional, Dict, List, Tuple
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from urllib.parse import urlparse, parse_qs
 import re
-
+from dataclasses import asdict, dataclass, field
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
+from urllib.parse import parse_qs, urlparse
 
 # =============================================================================
 # DATA CLASSES
 # =============================================================================
+
 
 @dataclass
 class CacheAnalysis:
@@ -66,10 +66,18 @@ class CacheAnalysis:
     cache_score: Optional[int] = None  # 0-100
     recommendations: List[str] = field(default_factory=list)
 
+    def to_dict(self) -> dict:
+        """Convert analysis model to a JSON-serializable dictionary."""
+        data = asdict(self)
+        data["last_modified_date"] = self.last_modified_date.isoformat() if self.last_modified_date else None
+        data["expires_date"] = self.expires_date.isoformat() if self.expires_date else None
+        return data
+
 
 # =============================================================================
 # RESOURCE FINGERPRINTING DETECTION
 # =============================================================================
+
 
 def detect_fingerprint(url: str) -> Tuple[bool, Optional[str], Optional[str]]:
     """
@@ -94,33 +102,33 @@ def detect_fingerprint(url: str) -> Tuple[bool, Optional[str], Optional[str]]:
 
     # Check query parameters
     query_params = parse_qs(parsed.query)
-    version_params = ['v', 'ver', 'version', 'rev', 'hash', 'h', 't', 'time']
+    version_params = ["v", "ver", "version", "rev", "hash", "h", "t", "time"]
 
     for param in version_params:
         if param in query_params:
             value = query_params[param][0]
-            return True, 'query', value
+            return True, "query", value
 
     # Check path for versioning
     path = parsed.path
 
     # Pattern: /v123/file.js or /version-1.2.3/file.js
-    version_path_pattern = r'/(?:v|version)[-_]?(\d+(?:\.\d+)*)'
+    version_path_pattern = r"/(?:v|version)[-_]?(\d+(?:\.\d+)*)"
     match = re.search(version_path_pattern, path, re.IGNORECASE)
     if match:
-        return True, 'path', match.group(1)
+        return True, "path", match.group(1)
 
     # Pattern: file.abc123def.js (hash in filename)
-    hash_pattern = r'\.([a-f0-9]{8,})\.'
+    hash_pattern = r"\.([a-f0-9]{8,})\."
     match = re.search(hash_pattern, path)
     if match:
-        return True, 'hash', match.group(1)
+        return True, "hash", match.group(1)
 
     # Pattern: file-abc123.js
-    hash_pattern2 = r'-([a-f0-9]{8,})\.'
+    hash_pattern2 = r"-([a-f0-9]{8,})\."
     match = re.search(hash_pattern2, path)
     if match:
-        return True, 'hash', match.group(1)
+        return True, "hash", match.group(1)
 
     return False, None, None
 
@@ -139,42 +147,35 @@ def remove_fingerprint(url: str) -> str:
 
     # Remove version query parameters
     query_params = parse_qs(parsed.query)
-    version_params = ['v', 'ver', 'version', 'rev', 'hash', 'h', 't', 'time']
+    version_params = ["v", "ver", "version", "rev", "hash", "h", "t", "time"]
 
-    cleaned_params = {
-        k: v for k, v in query_params.items()
-        if k not in version_params
-    }
+    cleaned_params = {k: v for k, v in query_params.items() if k not in version_params}
 
     # Rebuild query string
     if cleaned_params:
         from urllib.parse import urlencode
+
         new_query = urlencode(cleaned_params, doseq=True)
     else:
-        new_query = ''
+        new_query = ""
 
     # Remove hash from path
     path = parsed.path
-    path = re.sub(r'\.([a-f0-9]{8,})\.', '.', path)
-    path = re.sub(r'-([a-f0-9]{8,})\.', '.', path)
+    path = re.sub(r"\.([a-f0-9]{8,})\.", ".", path)
+    path = re.sub(r"-([a-f0-9]{8,})\.", ".", path)
 
     # Rebuild URL
     from urllib.parse import urlunparse
-    return urlunparse((
-        parsed.scheme,
-        parsed.netloc,
-        path,
-        parsed.params,
-        new_query,
-        parsed.fragment
-    ))
+
+    return urlunparse((parsed.scheme, parsed.netloc, path, parsed.params, new_query, parsed.fragment))
 
 
 # =============================================================================
 # CACHE-CONTROL PARSING
 # =============================================================================
 
-def parse_cache_control(cache_control: str) -> Dict[str, any]:
+
+def parse_cache_control(cache_control: str) -> Dict[str, Any]:
     """
     Parse Cache-Control header.
 
@@ -187,13 +188,13 @@ def parse_cache_control(cache_control: str) -> Dict[str, any]:
     if not cache_control:
         return {}
 
-    directives = {}
+    directives: Dict[str, Any] = {}
 
-    for directive in cache_control.split(','):
+    for directive in cache_control.split(","):
         directive = directive.strip()
 
-        if '=' in directive:
-            key, value = directive.split('=', 1)
+        if "=" in directive:
+            key, value = directive.split("=", 1)
             key = key.strip()
             value = value.strip()
 
@@ -210,9 +211,34 @@ def parse_cache_control(cache_control: str) -> Dict[str, any]:
     return directives
 
 
+def _directive_as_int(value: Any) -> Optional[int]:
+    """Convert cache directive value to int when possible."""
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value.isdigit():
+        return int(value)
+    return None
+
+
+def _directive_as_bool(value: Any) -> bool:
+    """Convert cache directive value to boolean."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        return value != 0
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"true", "yes", "1"}:
+            return True
+        if normalized in {"false", "no", "0"}:
+            return False
+    return bool(value)
+
+
 # =============================================================================
 # CACHE ANALYSIS FUNCTION
 # =============================================================================
+
 
 def analyze_cache(
     url: str,
@@ -264,14 +290,14 @@ def analyze_cache(
         analysis.cache_directives = list(directives.keys())
 
         # Extract specific directives
-        analysis.max_age = directives.get('max-age')
-        analysis.s_maxage = directives.get('s-maxage')
-        analysis.is_public = directives.get('public', False)
-        analysis.is_private = directives.get('private', False)
-        analysis.must_revalidate = directives.get('must-revalidate', False)
-        analysis.no_cache = directives.get('no-cache', False)
-        analysis.no_store = directives.get('no-store', False)
-        analysis.immutable = directives.get('immutable', False)
+        analysis.max_age = _directive_as_int(directives.get("max-age"))
+        analysis.s_maxage = _directive_as_int(directives.get("s-maxage"))
+        analysis.is_public = _directive_as_bool(directives.get("public", False))
+        analysis.is_private = _directive_as_bool(directives.get("private", False))
+        analysis.must_revalidate = _directive_as_bool(directives.get("must-revalidate", False))
+        analysis.no_cache = _directive_as_bool(directives.get("no-cache", False))
+        analysis.no_store = _directive_as_bool(directives.get("no-store", False))
+        analysis.immutable = _directive_as_bool(directives.get("immutable", False))
 
         # Determine cacheability
         if analysis.no_store:
@@ -282,14 +308,14 @@ def analyze_cache(
     # Parse ETag
     if etag:
         analysis.etag = etag
-        analysis.etag_is_weak = etag.startswith('W/')
+        analysis.etag_is_weak = etag.startswith("W/")
 
     # Parse Last-Modified
     if last_modified:
         analysis.last_modified = last_modified
         try:
             analysis.last_modified_date = parse_http_date(last_modified)
-        except:
+        except Exception:
             pass
 
     # Parse Expires
@@ -297,7 +323,7 @@ def analyze_cache(
         analysis.expires = expires
         try:
             analysis.expires_date = parse_http_date(expires)
-        except:
+        except Exception:
             pass
 
     # Parse Age
@@ -328,7 +354,7 @@ def analyze_cache(
                 time_remaining = int(freshness) - analysis.current_age
                 analysis.time_to_expire = max(0, time_remaining)
                 analysis.is_fresh = time_remaining > 0
-        except:
+        except Exception:
             pass
 
     # Calculate cache score and recommendations
@@ -340,6 +366,7 @@ def analyze_cache(
 # =============================================================================
 # CACHE SCORING
 # =============================================================================
+
 
 def calculate_cache_score(analysis: CacheAnalysis):
     """
@@ -356,9 +383,7 @@ def calculate_cache_score(analysis: CacheAnalysis):
         if analysis.immutable:
             score += 10  # Bonus for immutable with fingerprinting
     else:
-        recommendations.append(
-            "Add version fingerprinting to static resources for better caching"
-        )
+        recommendations.append("Add version fingerprinting to static resources for better caching")
 
     # Max-age set (+20 points)
     if analysis.max_age is not None:
@@ -407,6 +432,7 @@ def calculate_cache_score(analysis: CacheAnalysis):
 # DATE PARSING
 # =============================================================================
 
+
 def parse_http_date(date_str: str) -> datetime:
     """
     Parse HTTP date format to datetime.
@@ -414,6 +440,7 @@ def parse_http_date(date_str: str) -> datetime:
     Supports RFC 1123 format: "Mon, 16 Jan 2026 12:00:00 GMT"
     """
     from email.utils import parsedate_to_datetime
+
     return parsedate_to_datetime(date_str)
 
 
@@ -421,9 +448,8 @@ def parse_http_date(date_str: str) -> datetime:
 # BATCH ANALYSIS
 # =============================================================================
 
-def analyze_multiple_caches(
-    responses: List[Dict[str, str]]
-) -> List[CacheAnalysis]:
+
+def analyze_multiple_caches(responses: List[Dict[str, str]]) -> List[CacheAnalysis]:
     """
     Analyze cache behavior for multiple responses.
 
@@ -437,13 +463,13 @@ def analyze_multiple_caches(
 
     for response in responses:
         analysis = analyze_cache(
-            url=response.get('url', ''),
-            cache_control=response.get('Cache-Control'),
-            expires=response.get('Expires'),
-            etag=response.get('ETag'),
-            last_modified=response.get('Last-Modified'),
-            age=response.get('Age'),
-            date=response.get('Date'),
+            url=response.get("url", ""),
+            cache_control=response.get("Cache-Control"),
+            expires=response.get("Expires"),
+            etag=response.get("ETag"),
+            last_modified=response.get("Last-Modified"),
+            age=response.get("Age"),
+            date=response.get("Date"),
         )
         analyses.append(analysis)
 
@@ -454,6 +480,7 @@ def analyze_multiple_caches(
 # CACHE FORMATTING
 # =============================================================================
 
+
 def format_cache_analysis(analysis: CacheAnalysis) -> str:
     """Format cache analysis as human-readable string."""
     lines = []
@@ -461,15 +488,15 @@ def format_cache_analysis(analysis: CacheAnalysis) -> str:
     lines.append("=" * 60)
 
     if analysis.has_fingerprint:
-        lines.append(f"✓ Fingerprinted ({analysis.fingerprint_type}: {analysis.fingerprint_value})")
+        lines.append(f"[YES] Fingerprinted ({analysis.fingerprint_type}: {analysis.fingerprint_value})")
         lines.append(f"  Clean URL: {analysis.clean_url}")
     else:
-        lines.append("✗ Not fingerprinted")
+        lines.append("[NO] Not fingerprinted")
 
     lines.append(f"\nCache Score: {analysis.cache_score}/100")
 
     if analysis.is_cacheable:
-        lines.append(f"Cacheable: Yes")
+        lines.append("Cacheable: Yes")
         if analysis.max_age:
             lines.append(f"Max Age: {analysis.max_age}s ({format_duration(analysis.max_age)})")
         if analysis.is_fresh:
@@ -485,9 +512,9 @@ def format_cache_analysis(analysis: CacheAnalysis) -> str:
     if analysis.recommendations:
         lines.append("\nRecommendations:")
         for rec in analysis.recommendations:
-            lines.append(f"  • {rec}")
+            lines.append(f"  - {rec}")
 
-    return '\n'.join(lines)
+    return "\n".join(lines)
 
 
 def format_duration(seconds: int) -> str:

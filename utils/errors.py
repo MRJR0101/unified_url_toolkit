@@ -4,52 +4,60 @@ Centralized error handling and custom exceptions.
 Provides consistent error reporting across all modules.
 """
 
-from typing import Optional, Any
 from pathlib import Path
-
+from typing import Any, Optional
 
 # =============================================================================
 # CUSTOM EXCEPTIONS
 # =============================================================================
 
+
 class URLToolkitError(Exception):
     """Base exception for all URL toolkit errors."""
+
     pass
 
 
 class ValidationError(URLToolkitError):
     """Error during URL or domain validation."""
+
     pass
 
 
 class ExtractionError(URLToolkitError):
     """Error during URL or domain extraction."""
+
     pass
 
 
 class NormalizationError(URLToolkitError):
     """Error during URL or domain normalization."""
+
     pass
 
 
 class FileReadError(URLToolkitError):
     """Error reading input file."""
+
     pass
 
 
 class FileWriteError(URLToolkitError):
     """Error writing output file."""
+
     pass
 
 
 class NetworkError(URLToolkitError):
     """Error during network operations."""
+
     pass
 
 
 # =============================================================================
 # ERROR REPORTING
 # =============================================================================
+
 
 def format_error(
     error: Exception,
@@ -83,6 +91,7 @@ def format_error(
 
     if include_traceback:
         import traceback
+
         msg += f"\n{traceback.format_exc()}"
 
     return msg
@@ -118,7 +127,7 @@ def log_error(
     # Optionally write to file
     if filepath:
         try:
-            with open(filepath, 'a', encoding='utf-8') as f:
+            with open(filepath, "a", encoding="utf-8") as f:
                 f.write(log_msg)
         except Exception as e:
             sys.stderr.write(f"Failed to write error log: {e}\n")
@@ -152,13 +161,15 @@ class ErrorCollector:
             context: Optional context string
             item: Optional item that caused the error
         """
-        self.errors.append({
-            'error': error,
-            'context': context,
-            'item': item,
-            'type': type(error).__name__,
-            'message': str(error),
-        })
+        self.errors.append(
+            {
+                "error": error,
+                "context": context,
+                "item": item,
+                "type": type(error).__name__,
+                "message": str(error),
+            }
+        )
 
     def has_errors(self) -> bool:
         """Check if any errors were collected."""
@@ -181,13 +192,13 @@ class ErrorCollector:
         lines = [f"Collected {len(self.errors)} error(s):"]
 
         for i, error_info in enumerate(self.errors, 1):
-            context = error_info['context'] or "Unknown context"
-            error_type = error_info['type']
-            message = error_info['message']
+            context = error_info["context"] or "Unknown context"
+            error_type = error_info["type"]
+            message = error_info["message"]
 
             lines.append(f"{i}. [{error_type}] {context}: {message}")
 
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
     def clear(self):
         """Clear all collected errors."""
@@ -218,7 +229,7 @@ def safe_execute(func, *args, default=None, suppress_errors: bool = False, **kwa
     """
     try:
         return func(*args, **kwargs)
-    except Exception as e:
+    except Exception:
         if not suppress_errors:
             raise
         return default

@@ -9,36 +9,38 @@ Consolidated from:
 """
 
 import re
-from pathlib import Path
-from typing import List, Optional, Set, Iterator
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Iterator, List, Optional, cast
 
 from . import patterns
 
 # Optional imports for specialized extraction
 try:
-    from docx import Document
+    import docx
 except ImportError:
-    Document = None
+    docx = cast(Any, None)
 
 try:
-    from PyPDF2 import PdfReader
+    import PyPDF2
 except ImportError:
-    PdfReader = None
+    PyPDF2 = cast(Any, None)
 
 try:
-    from bs4 import BeautifulSoup
+    import bs4
 except ImportError:
-    BeautifulSoup = None
+    bs4 = cast(Any, None)
 
 
 # =============================================================================
 # DATA CLASSES
 # =============================================================================
 
+
 @dataclass
 class ExtractionResult:
     """Result of an extraction operation."""
+
     items: List[str]
     source: str
     count: int
@@ -49,9 +51,8 @@ class ExtractionResult:
 # TEXT-BASED EXTRACTION
 # =============================================================================
 
-def extract_urls_from_text(text: str,
-                          unique: bool = True,
-                          pattern: re.Pattern | None = None) -> List[str]:
+
+def extract_urls_from_text(text: str, unique: bool = True, pattern: re.Pattern | None = None) -> List[str]:
     """
     Extract URLs from text using regex pattern.
 
@@ -86,9 +87,7 @@ def extract_urls_from_text(text: str,
     return urls
 
 
-def extract_domains_from_text(text: str,
-                             unique: bool = True,
-                             include_ipv4: bool = True) -> List[str]:
+def extract_domains_from_text(text: str, unique: bool = True, include_ipv4: bool = True) -> List[str]:
     """
     Extract domain names from text (from URLs, emails, bare domains).
 
@@ -163,6 +162,7 @@ def extract_emails_from_text(text: str, unique: bool = True) -> List[str]:
 # FILE-BASED EXTRACTION
 # =============================================================================
 
+
 class FileExtractor:
     """
     Extract text, URLs, and domains from various file formats.
@@ -179,13 +179,13 @@ class FileExtractor:
         """
         ext = filepath.suffix.lower()
 
-        if ext in ('.txt', '.md', '.log', '.csv'):
+        if ext in (".txt", ".md", ".log", ".csv"):
             return FileExtractor._extract_text_plain(filepath)
-        elif ext == '.docx':
+        elif ext == ".docx":
             return FileExtractor._extract_text_docx(filepath)
-        elif ext == '.pdf':
+        elif ext == ".pdf":
             return FileExtractor._extract_text_pdf(filepath)
-        elif ext in ('.html', '.htm'):
+        elif ext in (".html", ".htm"):
             return FileExtractor._extract_text_html(filepath)
         else:
             # Try as plain text fallback
@@ -195,18 +195,18 @@ class FileExtractor:
     def _extract_text_plain(filepath: Path) -> str:
         """Extract text from plain text file."""
         try:
-            return filepath.read_text(encoding='utf-8', errors='ignore')
+            return filepath.read_text(encoding="utf-8", errors="ignore")
         except Exception:
             return ""
 
     @staticmethod
     def _extract_text_docx(filepath: Path) -> Optional[str]:
         """Extract text from DOCX file."""
-        if Document is None:
+        if docx is None:
             return None
 
         try:
-            doc = Document(filepath)
+            doc = docx.Document(str(filepath))
             paragraphs = [p.text for p in doc.paragraphs if p.text]
             return "\n".join(paragraphs)
         except Exception:
@@ -215,11 +215,11 @@ class FileExtractor:
     @staticmethod
     def _extract_text_pdf(filepath: Path) -> Optional[str]:
         """Extract text from PDF file."""
-        if PdfReader is None:
+        if PyPDF2 is None:
             return None
 
         try:
-            reader = PdfReader(str(filepath))
+            reader = PyPDF2.PdfReader(str(filepath))
             pages = []
             for page in reader.pages:
                 text = page.extract_text() or ""
@@ -232,13 +232,13 @@ class FileExtractor:
     @staticmethod
     def _extract_text_html(filepath: Path) -> Optional[str]:
         """Extract text from HTML file."""
-        if BeautifulSoup is None:
+        if bs4 is None:
             return None
 
         try:
-            html = filepath.read_text(encoding='utf-8', errors='ignore')
-            soup = BeautifulSoup(html, 'html.parser')
-            return soup.get_text(separator=' ', strip=True)
+            html = filepath.read_text(encoding="utf-8", errors="ignore")
+            soup = bs4.BeautifulSoup(html, "html.parser")
+            return soup.get_text(separator=" ", strip=True)
         except Exception:
             return None
 
@@ -283,10 +283,10 @@ class FileExtractor:
 # BULK EXTRACTION FROM MULTIPLE FILES
 # =============================================================================
 
-def extract_from_files(filepaths: List[Path],
-                      content_type: str = 'urls',
-                      unique_per_file: bool = True,
-                      unique_total: bool = True) -> dict:
+
+def extract_from_files(
+    filepaths: List[Path], content_type: str = "urls", unique_per_file: bool = True, unique_total: bool = True
+) -> dict:
     """
     Extract URLs or domains from multiple files.
 
@@ -307,44 +307,40 @@ def extract_from_files(filepaths: List[Path],
         >>> result['all']  # All URLs from all files
         >>> result['by_file'][Path('file1.txt')]  # URLs from file1
     """
-    results = {
-        'by_file': {},
-        'all': []
-    }
+    results: dict[str, Any] = {"by_file": {}, "all": []}
 
-    all_items_set = set() if unique_total else None
+    all_items_set: set[str] = set()
 
     for filepath in filepaths:
         try:
-            if content_type == 'urls':
+            if content_type == "urls":
                 items = FileExtractor.extract_urls(filepath, unique=unique_per_file)
-            elif content_type == 'domains':
+            elif content_type == "domains":
                 items = FileExtractor.extract_domains(filepath, unique=unique_per_file)
             else:
                 raise ValueError(f"Unknown content_type: {content_type}")
 
-            results['by_file'][filepath] = items
+            results["by_file"][filepath] = items
 
             if unique_total:
                 for item in items:
                     if item not in all_items_set:
                         all_items_set.add(item)
-                        results['all'].append(item)
+                        results["all"].append(item)
             else:
-                results['all'].extend(items)
+                results["all"].extend(items)
 
-        except Exception as e:
+        except Exception:
             # Log error but continue processing
-            results['by_file'][filepath] = []
+            results["by_file"][filepath] = []
             continue
 
     return results
 
 
-def extract_from_directory(directory: Path,
-                          content_type: str = 'urls',
-                          recursive: bool = False,
-                          extensions: Optional[List[str]] = None) -> dict:
+def extract_from_directory(
+    directory: Path, content_type: str = "urls", recursive: bool = False, extensions: Optional[List[str]] = None
+) -> dict:
     """
     Extract URLs or domains from all files in a directory.
 
@@ -359,19 +355,25 @@ def extract_from_directory(directory: Path,
     """
     # Collect files
     if recursive:
-        pattern = '**/*'
+        pattern = "**/*"
     else:
-        pattern = '*'
+        pattern = "*"
 
     files = []
-    for filepath in directory.glob(pattern):
-        if not filepath.is_file():
-            continue
+    try:
+        for filepath in sorted(directory.glob(pattern)):
+            try:
+                if not filepath.is_file():
+                    continue
+            except OSError:
+                continue
 
-        if extensions and filepath.suffix.lower() not in extensions:
-            continue
+            if extensions and filepath.suffix.lower() not in extensions:
+                continue
 
-        files.append(filepath)
+            files.append(filepath)
+    except OSError:
+        return {"by_file": {}, "all": []}
 
     return extract_from_files(files, content_type=content_type)
 
@@ -380,8 +382,8 @@ def extract_from_directory(directory: Path,
 # STREAMING EXTRACTION (for large files)
 # =============================================================================
 
-def extract_urls_streaming(filepath: Path,
-                          chunk_size: int = 1024 * 1024) -> Iterator[str]:
+
+def extract_urls_streaming(filepath: Path, chunk_size: int = 1024 * 1024) -> Iterator[str]:
     """
     Stream URLs from large file without loading entire file into memory.
 
@@ -394,7 +396,7 @@ def extract_urls_streaming(filepath: Path,
     """
     seen = set()
 
-    with filepath.open('r', encoding='utf-8', errors='ignore') as f:
+    with filepath.open("r", encoding="utf-8", errors="ignore") as f:
         while True:
             chunk = f.read(chunk_size)
             if not chunk:

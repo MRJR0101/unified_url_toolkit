@@ -6,18 +6,26 @@ Consolidated from:
 - URL-Forensics/ (domain analysis)
 """
 
-from typing import List, Dict, Set, Tuple
-from collections import defaultdict, Counter
-from urllib.parse import urlparse
 import re
+from collections import Counter, defaultdict
+from typing import TYPE_CHECKING, Any, Dict, List, Set, Tuple
+from urllib.parse import urlparse
 
-from ..core.patterns import DOMAIN_COMPREHENSIVE, IPV4_PATTERN
-from ..config.settings import URL_SHORTENER_DOMAINS, SUSPICIOUS_TLDS
-
+if TYPE_CHECKING:
+    from ..config.settings import SUSPICIOUS_TLDS, URL_SHORTENER_DOMAINS
+    from ..core.patterns import IPV4_PATTERN
+else:
+    try:
+        from ..config.settings import SUSPICIOUS_TLDS, URL_SHORTENER_DOMAINS
+        from ..core.patterns import IPV4_PATTERN
+    except ImportError:
+        from config.settings import SUSPICIOUS_TLDS, URL_SHORTENER_DOMAINS
+        from core.patterns import IPV4_PATTERN
 
 # =============================================================================
 # CATEGORIZATION RESULTS
 # =============================================================================
+
 
 class CategorizationResult:
     """Results from domain/URL categorization."""
@@ -37,22 +45,23 @@ class CategorizationResult:
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""
         return {
-            'total_unique_domains': len(self.unique_domains),
-            'by_tld': dict(self.by_tld),
-            'by_subdomain_count': {k: len(v) for k, v in self.by_subdomain_count.items()},
-            'by_base_domain': {k: len(v) for k, v in self.by_base_domain.items()},
-            'with_ports': len(self.with_ports),
-            'with_paths': len(self.with_paths),
-            'with_query_params': len(self.with_query_params),
-            'url_shorteners': len(self.url_shorteners),
-            'suspicious': len(self.suspicious),
-            'ip_addresses': len(self.ip_addresses),
+            "total_unique_domains": len(self.unique_domains),
+            "by_tld": dict(self.by_tld),
+            "by_subdomain_count": {k: len(v) for k, v in self.by_subdomain_count.items()},
+            "by_base_domain": {k: len(v) for k, v in self.by_base_domain.items()},
+            "with_ports": len(self.with_ports),
+            "with_paths": len(self.with_paths),
+            "with_query_params": len(self.with_query_params),
+            "url_shorteners": len(self.url_shorteners),
+            "suspicious": len(self.suspicious),
+            "ip_addresses": len(self.ip_addresses),
         }
 
 
 # =============================================================================
 # CATEGORIZATION FUNCTIONS
 # =============================================================================
+
 
 def categorize_urls(urls: List[str]) -> CategorizationResult:
     """
@@ -74,15 +83,15 @@ def categorize_urls(urls: List[str]) -> CategorizationResult:
 
     for url in urls:
         # Ensure URL has scheme
-        if not url.startswith(('http://', 'https://', 'ftp://')):
-            url = 'https://' + url
+        if not url.startswith(("http://", "https://", "ftp://")):
+            url = "https://" + url
 
         try:
             parsed = urlparse(url)
-            domain = parsed.netloc or parsed.path.split('/')[0]
+            domain = parsed.netloc or parsed.path.split("/")[0]
 
             # Remove port if present
-            domain_no_port = domain.split(':')[0]
+            domain_no_port = domain.split(":")[0]
             result.unique_domains.add(domain_no_port)
 
             # Check for IP address
@@ -90,32 +99,29 @@ def categorize_urls(urls: List[str]) -> CategorizationResult:
                 result.ip_addresses.append(url)
 
             # TLD analysis
-            parts = domain_no_port.split('.')
+            parts = domain_no_port.split(".")
             if len(parts) >= 2:
                 tld = parts[-1].lower()
                 result.by_tld[tld].append(domain_no_port)
 
                 # Base domain (last 2 parts)
-                base_domain = '.'.join(parts[-2:]).lower()
+                base_domain = ".".join(parts[-2:]).lower()
                 result.by_base_domain[base_domain].append(url)
 
                 # Check for suspicious TLD
                 if tld in SUSPICIOUS_TLDS:
-                    result.suspicious.append({
-                        'url': url,
-                        'reason': f'Suspicious TLD: .{tld}'
-                    })
+                    result.suspicious.append({"url": url, "reason": f"Suspicious TLD: .{tld}"})
 
             # Subdomain count (depth)
             subdomain_count = max(0, len(parts) - 2)
             result.by_subdomain_count[subdomain_count].append(domain_no_port)
 
             # Port detection
-            if ':' in domain and not domain.startswith('['):  # Not IPv6
+            if ":" in domain and not domain.startswith("["):  # Not IPv6
                 result.with_ports.append(url)
 
             # Path detection
-            if parsed.path and parsed.path != '/':
+            if parsed.path and parsed.path != "/":
                 result.with_paths.append(url)
 
             # Query parameters
@@ -129,10 +135,7 @@ def categorize_urls(urls: List[str]) -> CategorizationResult:
             # Suspicious patterns
             if is_suspicious_domain(domain_no_port):
                 reason = detect_suspicious_pattern(domain_no_port)
-                result.suspicious.append({
-                    'url': url,
-                    'reason': reason
-                })
+                result.suspicious.append({"url": url, "reason": reason})
 
         except Exception:
             # Skip malformed URLs
@@ -141,7 +144,7 @@ def categorize_urls(urls: List[str]) -> CategorizationResult:
     return result
 
 
-def categorize_domains(domains: List[str]) -> Dict[str, any]:
+def categorize_domains(domains: List[str]) -> Dict[str, Any]:
     """
     Categorize a list of domains.
 
@@ -151,13 +154,13 @@ def categorize_domains(domains: List[str]) -> Dict[str, any]:
     Returns:
         Dictionary with categorization results
     """
-    result = {
-        'total': len(domains),
-        'unique': len(set(domains)),
-        'by_tld': Counter(),
-        'by_depth': Counter(),
-        'suspicious': [],
-        'ip_addresses': [],
+    result: Dict[str, Any] = {
+        "total": len(domains),
+        "unique": len(set(domains)),
+        "by_tld": Counter(),
+        "by_depth": Counter(),
+        "suspicious": [],
+        "ip_addresses": [],
     }
 
     for domain in domains:
@@ -165,34 +168,28 @@ def categorize_domains(domains: List[str]) -> Dict[str, any]:
 
         # IP address check
         if re.match(IPV4_PATTERN, domain):
-            result['ip_addresses'].append(domain)
+            result["ip_addresses"].append(domain)
             continue
 
         # TLD
-        parts = domain.split('.')
+        parts = domain.split(".")
         if len(parts) >= 2:
             tld = parts[-1]
-            result['by_tld'][tld] += 1
+            result["by_tld"][tld] += 1
 
             # Depth (subdomain levels)
             depth = len(parts) - 2
-            result['by_depth'][depth] += 1
+            result["by_depth"][depth] += 1
 
             # Suspicious TLD
             if tld in SUSPICIOUS_TLDS:
-                result['suspicious'].append({
-                    'domain': domain,
-                    'reason': f'Suspicious TLD: .{tld}'
-                })
+                result["suspicious"].append({"domain": domain, "reason": f"Suspicious TLD: .{tld}"})
 
         # Suspicious patterns
         if is_suspicious_domain(domain):
             reason = detect_suspicious_pattern(domain)
             if reason:
-                result['suspicious'].append({
-                    'domain': domain,
-                    'reason': reason
-                })
+                result["suspicious"].append({"domain": domain, "reason": reason})
 
     return result
 
@@ -216,12 +213,12 @@ def get_top_domains(urls: List[str], top_n: int = 20) -> List[Tuple[str, int]]:
     domains = []
 
     for url in urls:
-        if not url.startswith(('http://', 'https://', 'ftp://')):
-            url = 'https://' + url
+        if not url.startswith(("http://", "https://", "ftp://")):
+            url = "https://" + url
 
         try:
             parsed = urlparse(url)
-            domain = parsed.netloc.split(':')[0].lower()
+            domain = parsed.netloc.split(":")[0].lower()
             if domain:
                 domains.append(domain)
         except Exception:
@@ -244,13 +241,13 @@ def get_top_tlds(urls: List[str], top_n: int = 20) -> List[Tuple[str, int]]:
     tlds = []
 
     for url in urls:
-        if not url.startswith(('http://', 'https://', 'ftp://')):
-            url = 'https://' + url
+        if not url.startswith(("http://", "https://", "ftp://")):
+            url = "https://" + url
 
         try:
             parsed = urlparse(url)
-            domain = parsed.netloc.split(':')[0]
-            parts = domain.split('.')
+            domain = parsed.netloc.split(":")[0]
+            parts = domain.split(".")
             if len(parts) >= 2:
                 tld = parts[-1].lower()
                 tlds.append(tld)
@@ -264,6 +261,7 @@ def get_top_tlds(urls: List[str], top_n: int = 20) -> List[Tuple[str, int]]:
 # SUSPICIOUS PATTERN DETECTION
 # =============================================================================
 
+
 def is_suspicious_domain(domain: str) -> bool:
     """
     Check if a domain matches suspicious patterns.
@@ -275,10 +273,10 @@ def is_suspicious_domain(domain: str) -> bool:
         True if domain appears suspicious
     """
     patterns = [
-        r'-{3,}',  # Multiple consecutive dashes
-        r'_{3,}',  # Multiple consecutive underscores
-        r'\d{10,}',  # Very long number sequences
-        r'^[0-9]+[a-z]+[0-9]+$',  # Numbers-letters-numbers pattern
+        r"-{3,}",  # Multiple consecutive dashes
+        r"_{3,}",  # Multiple consecutive underscores
+        r"\d{10,}",  # Very long number sequences
+        r"^[0-9]+[a-z]+[0-9]+$",  # Numbers-letters-numbers pattern
     ]
 
     for pattern in patterns:
@@ -286,7 +284,7 @@ def is_suspicious_domain(domain: str) -> bool:
             return True
 
     # Check TLD
-    parts = domain.split('.')
+    parts = domain.split(".")
     if len(parts) >= 2:
         tld = parts[-1].lower()
         if tld in SUSPICIOUS_TLDS:
@@ -305,19 +303,19 @@ def detect_suspicious_pattern(domain: str) -> str:
     Returns:
         Description of suspicious pattern, or empty string
     """
-    if re.search(r'-{3,}', domain):
+    if re.search(r"-{3,}", domain):
         return "Multiple consecutive dashes"
 
-    if re.search(r'_{3,}', domain):
+    if re.search(r"_{3,}", domain):
         return "Multiple consecutive underscores"
 
-    if re.search(r'\d{10,}', domain):
+    if re.search(r"\d{10,}", domain):
         return "Very long number sequence"
 
-    if re.search(r'^[0-9]+[a-z]+[0-9]+$', domain):
+    if re.search(r"^[0-9]+[a-z]+[0-9]+$", domain):
         return "Numbers-letters-numbers pattern"
 
-    parts = domain.split('.')
+    parts = domain.split(".")
     if len(parts) >= 2:
         tld = parts[-1].lower()
         if tld in SUSPICIOUS_TLDS:
@@ -344,16 +342,16 @@ def group_by_base_domain(urls: List[str]) -> Dict[str, List[str]]:
     groups = defaultdict(list)
 
     for url in urls:
-        if not url.startswith(('http://', 'https://', 'ftp://')):
-            url = 'https://' + url
+        if not url.startswith(("http://", "https://", "ftp://")):
+            url = "https://" + url
 
         try:
             parsed = urlparse(url)
-            domain = parsed.netloc.split(':')[0]
-            parts = domain.split('.')
+            domain = parsed.netloc.split(":")[0]
+            parts = domain.split(".")
 
             if len(parts) >= 2:
-                base_domain = '.'.join(parts[-2:]).lower()
+                base_domain = ".".join(parts[-2:]).lower()
                 groups[base_domain].append(url)
         except Exception:
             continue

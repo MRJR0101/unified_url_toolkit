@@ -8,18 +8,27 @@ compared to the 42+ original implementations.
 
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add workspace root to path for local source execution.
+project_root = Path(__file__).resolve().parents[1]
+workspace_root = project_root.parent
+if str(workspace_root) not in sys.path:
+    sys.path.insert(0, str(workspace_root))
 
-from unified_url_toolkit import (
-    extract_urls_from_text,
-    extract_domains_from_text,
-    validate_domain,
-    validate_url,
-    normalize_domain,
-    clean_domain_list,
-)
+if TYPE_CHECKING:
+    from core.extractors import extract_domains_from_text, extract_urls_from_text
+    from core.normalizers import clean_domain_list, normalize_domain
+    from core.validators import validate_domain, validate_url
+else:
+    from unified_url_toolkit import (
+        clean_domain_list,
+        extract_domains_from_text,
+        extract_urls_from_text,
+        normalize_domain,
+        validate_domain,
+        validate_url,
+    )
 
 
 def example_extraction():
@@ -39,13 +48,13 @@ def example_extraction():
     urls = extract_urls_from_text(text)
     print(f"\nExtracted {len(urls)} URLs:")
     for url in urls:
-        print(f"  • {url}")
+        print(f"  - {url}")
 
     # Extract domains
     domains = extract_domains_from_text(text)
     print(f"\nExtracted {len(domains)} domains:")
     for domain in domains:
-        print(f"  • {domain}")
+        print(f"  - {domain}")
 
 
 def example_validation():
@@ -54,31 +63,20 @@ def example_validation():
     print("EXAMPLE 2: URL and Domain Validation")
     print("=" * 70)
 
-    test_domains = [
-        "example.com",
-        "www.test.org",
-        "invalid..domain",
-        "localhost",
-        "192.168.1.1"
-    ]
+    test_domains = ["example.com", "www.test.org", "invalid..domain", "localhost", "192.168.1.1"]
 
     print("\nValidating domains:")
     for domain in test_domains:
         is_valid, status = validate_domain(domain)
-        symbol = "✓" if is_valid else "✗"
+        symbol = "[OK]" if is_valid else "[X]"
         print(f"  {symbol} {domain:<20} - {status.value}")
 
-    test_urls = [
-        "https://example.com/path",
-        "http://test.org",
-        "invalid url with spaces",
-        "example.com/path"
-    ]
+    test_urls = ["https://example.com/path", "http://test.org", "invalid url with spaces", "example.com/path"]
 
     print("\nValidating URLs:")
     for url in test_urls:
         is_valid, reason = validate_url(url, check_scheme=False)
-        symbol = "✓" if is_valid else "✗"
+        symbol = "[OK]" if is_valid else "[X]"
         print(f"  {symbol} {url:<30} - {reason}")
 
 
@@ -99,19 +97,14 @@ def example_normalization():
 
     print("\nOriginal domains:")
     for domain in messy_domains:
-        print(f"  • {domain}")
+        print(f"  - {domain}")
 
     # Clean with various options
-    cleaned = clean_domain_list(
-        messy_domains,
-        strip_www=True,
-        remove_duplicates=True,
-        sort=True
-    )
+    cleaned = clean_domain_list(messy_domains, strip_www=True, remove_duplicates=True, sort=True)
 
     print(f"\nCleaned to {len(cleaned)} unique domains:")
     for domain in cleaned:
-        print(f"  • {domain}")
+        print(f"  - {domain}")
 
     # Individual normalization
     print("\nNormalization examples:")
@@ -122,11 +115,7 @@ def example_normalization():
     ]
 
     for domain, strip_www, strip_subdomain in examples:
-        normalized = normalize_domain(
-            domain,
-            strip_www=strip_www,
-            strip_subdomain=strip_subdomain
-        )
+        normalized = normalize_domain(domain, strip_www=strip_www, strip_subdomain=strip_subdomain)
         flags = []
         if strip_www:
             flags.append("strip_www")
@@ -142,30 +131,30 @@ def example_file_operations():
     print("EXAMPLE 4: File Operations")
     print("=" * 70)
 
-    from unified_url_toolkit.io import write_urls_to_file, read_urls_from_file
+    import importlib
+
+    io_module = importlib.import_module("unified_url_toolkit.io")
+    read_urls_from_file = io_module.read_urls_from_file
+    write_urls_to_file = io_module.write_urls_to_file
 
     # Sample URLs
-    urls = [
-        "https://example.com",
-        "https://test.org",
-        "https://company.io"
-    ]
+    urls = ["https://example.com", "https://test.org", "https://company.io"]
 
     # Write to file
     output_file = Path("sample_urls.txt")
     count = write_urls_to_file(urls, output_file, deduplicate=True, sort=True)
-    print(f"\n✓ Wrote {count} URLs to {output_file}")
+    print(f"\n[OK] Wrote {count} URLs to {output_file}")
 
     # Read back
     read_urls = read_urls_from_file(output_file)
-    print(f"✓ Read {len(read_urls)} URLs from {output_file}")
+    print(f"[OK] Read {len(read_urls)} URLs from {output_file}")
 
     for url in read_urls:
-        print(f"  • {url}")
+        print(f"  - {url}")
 
     # Clean up
     output_file.unlink()
-    print(f"\n✓ Cleaned up {output_file}")
+    print(f"\n[OK] Cleaned up {output_file}")
 
 
 def main():
@@ -185,11 +174,11 @@ def main():
     print("All examples completed successfully!")
     print("=" * 70)
     print("\nFor more examples, see:")
-    print("  • cli/clean_domains.py - Domain cleaning tool")
-    print("  • cli/extract_urls.py - URL extraction tool")
-    print("  • cli/check_links.py - URL checking tool")
+    print("  - cli/clean_domains.py - Domain cleaning tool")
+    print("  - cli/extract_urls.py - URL extraction tool")
+    print("  - cli/check_links.py - URL checking tool")
     print("\n")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

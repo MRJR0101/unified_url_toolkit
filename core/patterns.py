@@ -8,24 +8,17 @@ across the legacy codebase. Each pattern is documented with its purpose and sour
 import re
 from typing import Pattern
 
-
 # =============================================================================
 # URL PATTERNS
 # =============================================================================
 
 # Standard URL pattern (http/https/ftp)
 # Consolidated from: LinkTools, ExtractUrls, URLToolkit, SimpleUrlExtractor
-URL_STANDARD: Pattern = re.compile(
-    r"https?://[^\s\[\]<>()\"']+",
-    re.IGNORECASE
-)
+URL_STANDARD: Pattern = re.compile(r"https?://[^\s\[\]<>()\"']+", re.IGNORECASE)
 
 # Comprehensive URL pattern with more schemes
 # Source: URLExtractor, DreamExtractor
-URL_COMPREHENSIVE: Pattern = re.compile(
-    r"(?:https?|ftp|file)://[^\s\[\]<>()\"']+",
-    re.IGNORECASE
-)
+URL_COMPREHENSIVE: Pattern = re.compile(r"(?:https?|ftp|file)://[^\s\[\]<>()\"']+", re.IGNORECASE)
 
 # URL with optional scheme (captures domain-only URLs too)
 # Source: Multiple implementations
@@ -33,7 +26,7 @@ URL_WITH_OPTIONAL_SCHEME: Pattern = re.compile(
     r"(?:(?:https?|ftp)://)?"
     r"(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}"
     r"(?:[/?#][^\s\[\]<>()\"']*)?",
-    re.IGNORECASE | re.VERBOSE
+    re.IGNORECASE | re.VERBOSE,
 )
 
 
@@ -62,7 +55,7 @@ DOMAIN_VALIDATION: Pattern = re.compile(
     r"^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*"
     r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?"
     r"(?:\.[a-z]{2,})+$",
-    re.IGNORECASE | re.VERBOSE
+    re.IGNORECASE | re.VERBOSE,
 )
 
 
@@ -72,15 +65,14 @@ DOMAIN_VALIDATION: Pattern = re.compile(
 
 # IPv4 pattern
 # Consolidated from: LinkTools, URLToolkit, URL-Forensics
-IPV4: Pattern = re.compile(
-    r"\b(?:(?:25[0-5]|2[0-4]\d|1?\d{1,2})\.){3}(?:25[0-5]|2[0-4]\d|1?\d{1,2})\b"
-)
+IPV4: Pattern = re.compile(r"\b(?:(?:25[0-5]|2[0-4]\d|1?\d{1,2})\.){3}(?:25[0-5]|2[0-4]\d|1?\d{1,2})\b")
+
+# Backward-compatible alias used by legacy modules.
+IPV4_PATTERN: Pattern = IPV4
 
 # IPv6 pattern (simplified)
 # Source: URL-Forensics
-IPV6: Pattern = re.compile(
-    r"\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\b"
-)
+IPV6: Pattern = re.compile(r"\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\b")
 
 
 # =============================================================================
@@ -89,10 +81,7 @@ IPV6: Pattern = re.compile(
 
 # URL scheme detection
 # Source: LinkTools/core/validators.py
-SCHEME: Pattern = re.compile(
-    r"^[a-zA-Z][a-zA-Z0-9+\-.]*://",
-    re.IGNORECASE
-)
+SCHEME: Pattern = re.compile(r"^[a-zA-Z][a-zA-Z0-9+\-.]*://", re.IGNORECASE)
 
 
 # =============================================================================
@@ -101,9 +90,7 @@ SCHEME: Pattern = re.compile(
 
 # Email pattern
 # Source: Multiple implementations
-EMAIL: Pattern = re.compile(
-    r"\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b"
-)
+EMAIL: Pattern = re.compile(r"\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b")
 
 
 # =============================================================================
@@ -112,27 +99,21 @@ EMAIL: Pattern = re.compile(
 
 # URL shorteners
 # Source: URLToolkit/url_toolkit.py::domain_categorizer
-URL_SHORTENER: Pattern = re.compile(
-    r"bit\.ly|tinyurl|goo\.gl|t\.co|ow\.ly|is\.gd",
-    re.IGNORECASE
-)
+URL_SHORTENER: Pattern = re.compile(r"bit\.ly|tinyurl|goo\.gl|t\.co|ow\.ly|is\.gd", re.IGNORECASE)
 
 # Multiple dashes/underscores (suspicious)
 # Source: URLToolkit, URL-Forensics
-SUSPICIOUS_CHARS: Pattern = re.compile(
-    r"-{3,}|_{3,}"
-)
+SUSPICIOUS_CHARS: Pattern = re.compile(r"-{3,}|_{3,}")
 
 # Long number sequences (suspicious)
 # Source: URLToolkit
-LONG_NUMBERS: Pattern = re.compile(
-    r"\d{5,}"
-)
+LONG_NUMBERS: Pattern = re.compile(r"\d{5,}")
 
 
 # =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
+
 
 def has_scheme(text: str) -> bool:
     """Check if text starts with a URL scheme."""
@@ -158,6 +139,7 @@ def extract_scheme(url: str) -> str | None:
 # =============================================================================
 # PATTERN GROUPS (for convenience)
 # =============================================================================
+
 
 class PatternGroups:
     """Convenient groupings of patterns for common tasks."""

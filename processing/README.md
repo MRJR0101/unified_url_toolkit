@@ -1,118 +1,29 @@
-# processing
+# Processing Module
 
-**Category:** <!-- TODO: Add category (e.g., 06_URLs) -->
-**Status:** Production
+Parallel and batch execution primitives for high-volume workflows.
 
-> Data processing utilities for batch operations and parallel execution.
+## Responsibilities
+- parallel map/filter processing
+- batch slicing helpers
+- progress-aware execution wrappers
 
-## Overview
+## Main File
+- `parallel.py`
 
-**What it does:**
-Consolidated from:
-- ExtractUrls/extract_urls.py (ThreadPoolExecutor)
-- UrlExtractorParallel/ (multiprocessing)
-- Parallel_extractor/ (concurrent processing)
+## Usage Example
+```python
+from unified_url_toolkit.processing.parallel import process_parallel
 
-**What it does NOT do:**
-<!-- TODO: Describe boundaries to prevent wrong-tool confusion -->
-
-## Use Cases
-
-<!-- TODO: Add 2-4 concrete scenarios -->
-- 
-
-## Features
-
-- ExtractUrls/extract_urls.py (ThreadPoolExecutor)
-- UrlExtractorParallel/ (multiprocessing)
-- Parallel_extractor/ (concurrent processing)
-
-## Requirements
-
-- Python 3.8+
-- Windows 10/11
-- No external dependencies (stdlib only)
-
-## Quick Start
-
-```powershell
-cd C:\Dev\PROJECTS\00_PyToolbelt\06_URLs\unified_url_toolkit\processing
-python __init__.py --help
+items = ["https://example.com", "https://test.org"]
+results = process_parallel(items, lambda x: x.upper(), use_threads=True)
+print(results)
 ```
 
-**First run:**
-```powershell
-python __init__.py --dry-run
-```
+## Boundaries
+- orchestration primitives only
+- domain logic stays in `core/`
+- persistence stays in `io/`
 
-## Usage
-
-```powershell
-# Basic usage
-python __init__.py --dry-run
-
-# <!-- TODO: Add real usage examples -->
-```
-
-## Input / Output
-
-**Expects:**
-<!-- TODO: Describe input format and sources -->
-
-**Creates:**
-<!-- TODO: Describe output files and locations -->
-
-## Pipeline Position
-
-**Fed by:** <!-- TODO: Upstream tools -->
-**Feeds into:** <!-- TODO: Downstream tools -->
-
-## Hardcoded Paths
-
-**Fully parameterized** -- all paths passed via arguments or config.
-
-## Files
-
-| File | Lines | Purpose |
-|------|-------|---------|
-| `__init__.py` | 21 | Package initializer |
-| `parallel.py` | 273 | Python script |
-| `pyproject.toml` | 23 | Project configuration and dependencies |
-| `requirements.txt` | 7 | Python dependencies |
-
-## Safety & Reliability
-
-<!-- TODO: Describe dry-run mode, backup behavior, failure handling -->
-
-## License & Contact
-
-Internal tool. Maintainer: MR
-
----
-*Part of PyToolbelt -- Zero-dependency Windows utilities*
-
-<!-- ReadmeForge: The following sections were auto-appended. Move them to the correct position per the 21-section blueprint. -->
-
-## How It Works
-
-<!-- TODO: Add a ## How It Works section with numbered steps describing the internal processing flow from input to output. -->
-
-
-## Example Output
-
-<!-- TODO: Add a ## Example Output section with a fenced code block showing realistic console output from a typical run. -->
-
-
-## Logging & Observability
-
-<!-- TODO: Add a ## Logging section describing: where logs are written, log format, verbosity flags, and any run artifacts produced. -->
-
-
-## Troubleshooting / FAQ
-
-<!-- TODO: Add a ## Troubleshooting section with Problem/Fix pairs for the most common errors. Include known limitations. -->
-
-
-## Versioning / Roadmap
-
-<!-- TODO: Add a ## Versioning section with the current version number and a roadmap of planned features. -->
+## Related Docs
+- [Architecture](../docs/ARCHITECTURE.md)
+- [Vision And Plan](../docs/VISION_AND_PLAN.md)

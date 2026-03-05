@@ -2,24 +2,33 @@
 Redirect Chain Mapping - Track and analyze redirect sequences.
 
 Analyzes redirect behavior including:
-- Redirect chains (301 → 302 → 200)
+- Redirect chains (301 -> 302 -> 200)
 - Redirect types (permanent, temporary, meta-refresh)
 - JavaScript-based redirects
 - Redirect loops
 - Final destination tracking
 """
 
-from typing import List, Optional, Dict, Tuple
-from dataclasses import dataclass, field
-from datetime import datetime
-import requests
-from urllib.parse import urlparse
 import re
+from dataclasses import asdict, dataclass, field
+from datetime import datetime
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from urllib.parse import urlparse
 
+import requests  # type: ignore[import-untyped]
+
+if TYPE_CHECKING:
+    from ..config.settings import DEFAULT_HTTP_TIMEOUT, DEFAULT_USER_AGENT, VERIFY_SSL
+else:
+    try:
+        from ..config.settings import DEFAULT_HTTP_TIMEOUT, DEFAULT_USER_AGENT, VERIFY_SSL
+    except ImportError:
+        from config.settings import DEFAULT_HTTP_TIMEOUT, DEFAULT_USER_AGENT, VERIFY_SSL
 
 # =============================================================================
 # DATA CLASSES
 # =============================================================================
+
 
 @dataclass
 class RedirectHop:
@@ -31,6 +40,10 @@ class RedirectHop:
     location: Optional[str] = None
     response_time_ms: float = 0
     headers: Dict[str, str] = field(default_factory=dict)
+
+    def to_dict(self) -> dict:
+        """Convert redirect hop to dictionary."""
+        return asdict(self)
 
 
 @dataclass
@@ -55,9 +68,30 @@ class RedirectChain:
     # Analysis
     redirect_distance: int = 0  # Number of hops
     crosses_domains: bool = False
-    crosses_protocols: bool = False  # HTTP → HTTPS
+    crosses_protocols: bool = False  # HTTP -> HTTPS
 
     error: Optional[str] = None
+
+    def to_dict(self) -> dict:
+        """Convert redirect chain to a JSON-serializable dictionary."""
+        return {
+            "start_url": self.start_url,
+            "final_url": self.final_url,
+            "hops": [hop.to_dict() for hop in self.hops],
+            "total_redirects": self.total_redirects,
+            "total_time_ms": self.total_time_ms,
+            "has_loop": self.has_loop,
+            "loop_urls": self.loop_urls,
+            "timestamp": self.timestamp.isoformat(),
+            "permanent_redirects": self.permanent_redirects,
+            "temporary_redirects": self.temporary_redirects,
+            "meta_refresh_redirects": self.meta_refresh_redirects,
+            "js_redirects": self.js_redirects,
+            "redirect_distance": self.redirect_distance,
+            "crosses_domains": self.crosses_domains,
+            "crosses_protocols": self.crosses_protocols,
+            "error": self.error,
+        }
 
 
 # =============================================================================
@@ -87,13 +121,15 @@ def get_redirect_type(status_code: int) -> str:
 # REDIRECT CHAIN TRACKING
 # =============================================================================
 
+
 def follow_redirect_chain(
     url: str,
     max_redirects: int = 10,
-    timeout: int = 10,
+    timeout: int = DEFAULT_HTTP_TIMEOUT,
     check_meta_refresh: bool = True,
-    check_js_redirect: bool = True,
-    verify_ssl: bool = True,
+    check_js_redirects: bool = True,
+    verify_ssl: bool = VERIFY_SSL,
+    user_agent: str = DEFAULT_USER_AGENT,
 ) -> RedirectChain:
     """
     Follow redirect chain and analyze each hop.
@@ -103,7 +139,7 @@ def follow_redirect_chain(
         max_redirects: Maximum redirects to follow
         timeout: Request timeout per hop
         check_meta_refresh: Check for meta refresh redirects
-        check_js_redirect: Check for JavaScript redirects
+        check_js_redirects: Check for JavaScript redirects
         verify_ssl: Verify SSL certificates
 
     Returns:
@@ -116,8 +152,8 @@ def follow_redirect_chain(
         >>> for hop in chain.hops:
         ...     print(f"  {hop.url} -> {hop.redirect_type}")
     """
-    if not url.startswith(('http://', 'https://')):
-        url = 'https://' + url
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
 
     chain = RedirectChain(
         start_url=url,
@@ -125,7 +161,7 @@ def follow_redirect_chain(
     )
 
     current_url = url
-    visited_urls = set()
+    visited_urls: set[str] = set()
     start_time = datetime.now()
 
     try:
@@ -133,7 +169,7 @@ def follow_redirect_chain(
             # Check for redirect loop
             if current_url in visited_urls:
                 chain.has_loop = True
-                chain.loop_urls = list(visited_urls)
+                chain.loop_urls = sorted(visited_urls)
                 break
 
             visited_urls.add(current_url)
@@ -145,6 +181,7 @@ def follow_redirect_chain(
                 timeout=timeout,
                 allow_redirects=False,
                 verify=verify_ssl,
+                headers={"User-Agent": user_agent},
             )
 
             hop_time = (datetime.now() - hop_start).total_seconds() * 1000
@@ -161,7 +198,7 @@ def follow_redirect_chain(
             # Analyze redirect type
             if 300 <= response.status_code < 400:
                 # HTTP redirect
-                location = response.headers.get('Location')
+                location = response.headers.get("Location")
                 hop.location = location
                 hop.redirect_type = get_redirect_type(response.status_code)
 
@@ -176,6 +213,7 @@ def follow_redirect_chain(
                 if location:
                     # Resolve relative URLs
                     from urllib.parse import urljoin
+
                     current_url = urljoin(current_url, location)
                     chain.total_redirects += 1
                 else:
@@ -203,11 +241,12 @@ def follow_redirect_chain(
                         chain.total_redirects += 1
 
                         from urllib.parse import urljoin
+
                         current_url = urljoin(current_url, meta_url)
                         continue
 
                 # Check JavaScript redirect
-                if check_js_redirect:
+                if check_js_redirects:
                     js_url = check_js_redirect(response.text)
                     if js_url:
                         js_hop = RedirectHop(
@@ -222,6 +261,7 @@ def follow_redirect_chain(
                         chain.total_redirects += 1
 
                         from urllib.parse import urljoin
+
                         current_url = urljoin(current_url, js_url)
                         continue
 
@@ -236,7 +276,7 @@ def follow_redirect_chain(
         # Set final URL
         chain.final_url = current_url
         chain.total_time_ms = (datetime.now() - start_time).total_seconds() * 1000
-        chain.redirect_distance = len(chain.hops) - 1
+        chain.redirect_distance = max(0, len(chain.hops) - 1)
 
         # Analyze cross-domain and cross-protocol
         chain.crosses_domains = crosses_domains(chain.start_url, chain.final_url)
@@ -251,6 +291,7 @@ def follow_redirect_chain(
 # =============================================================================
 # META REFRESH DETECTION
 # =============================================================================
+
 
 def check_meta_refresh_redirect(html_content: str) -> Optional[str]:
     """
@@ -288,6 +329,7 @@ def check_meta_refresh_redirect(html_content: str) -> Optional[str]:
 # JAVASCRIPT REDIRECT DETECTION
 # =============================================================================
 
+
 def check_js_redirect(html_content: str) -> Optional[str]:
     """
     Check for common JavaScript redirect patterns.
@@ -324,27 +366,28 @@ def check_js_redirect(html_content: str) -> Optional[str]:
 # REDIRECT ANALYSIS HELPERS
 # =============================================================================
 
+
 def crosses_domains(url1: str, url2: str) -> bool:
     """Check if redirect crosses domain boundaries."""
     domain1 = urlparse(url1).netloc.lower()
     domain2 = urlparse(url2).netloc.lower()
 
     # Strip www. for comparison
-    domain1 = domain1.replace('www.', '')
-    domain2 = domain2.replace('www.', '')
+    domain1 = domain1.replace("www.", "")
+    domain2 = domain2.replace("www.", "")
 
     return domain1 != domain2
 
 
 def crosses_protocols(url1: str, url2: str) -> bool:
-    """Check if redirect changes protocol (http → https)."""
+    """Check if redirect changes protocol (http -> https)."""
     scheme1 = urlparse(url1).scheme.lower()
     scheme2 = urlparse(url2).scheme.lower()
 
     return scheme1 != scheme2
 
 
-def get_redirect_summary(chain: RedirectChain) -> Dict[str, any]:
+def get_redirect_summary(chain: RedirectChain) -> Dict[str, Any]:
     """
     Get summary statistics for redirect chain.
 
@@ -355,18 +398,18 @@ def get_redirect_summary(chain: RedirectChain) -> Dict[str, any]:
         Dictionary with summary statistics
     """
     return {
-        'total_redirects': chain.total_redirects,
-        'total_time_ms': chain.total_time_ms,
-        'redirect_distance': chain.redirect_distance,
-        'permanent_redirects': chain.permanent_redirects,
-        'temporary_redirects': chain.temporary_redirects,
-        'meta_refresh_redirects': chain.meta_refresh_redirects,
-        'js_redirects': chain.js_redirects,
-        'crosses_domains': chain.crosses_domains,
-        'crosses_protocols': chain.crosses_protocols,
-        'has_loop': chain.has_loop,
-        'start_url': chain.start_url,
-        'final_url': chain.final_url,
+        "total_redirects": chain.total_redirects,
+        "total_time_ms": chain.total_time_ms,
+        "redirect_distance": chain.redirect_distance,
+        "permanent_redirects": chain.permanent_redirects,
+        "temporary_redirects": chain.temporary_redirects,
+        "meta_refresh_redirects": chain.meta_refresh_redirects,
+        "js_redirects": chain.js_redirects,
+        "crosses_domains": chain.crosses_domains,
+        "crosses_protocols": chain.crosses_protocols,
+        "has_loop": chain.has_loop,
+        "start_url": chain.start_url,
+        "final_url": chain.final_url,
     }
 
 
@@ -381,8 +424,8 @@ def format_redirect_chain(chain: RedirectChain) -> str:
         Formatted string representation
     """
     lines = []
-    lines.append(f"Redirect Chain Analysis")
-    lines.append(f"=" * 60)
+    lines.append("Redirect Chain Analysis")
+    lines.append("=" * 60)
     lines.append(f"Start URL: {chain.start_url}")
     lines.append(f"Final URL: {chain.final_url}")
     lines.append(f"Total Redirects: {chain.total_redirects}")
@@ -392,12 +435,12 @@ def format_redirect_chain(chain: RedirectChain) -> str:
     if chain.error:
         lines.append(f"Error: {chain.error}")
     elif chain.has_loop:
-        lines.append(f"⚠️  Redirect Loop Detected!")
+        lines.append("[WARN] Redirect Loop Detected!")
         lines.append(f"Loop URLs: {', '.join(chain.loop_urls)}")
     else:
         lines.append("Redirect Hops:")
         for i, hop in enumerate(chain.hops, 1):
-            arrow = " → " if i < len(chain.hops) else ""
+            arrow = " -> " if i < len(chain.hops) else ""
             lines.append(f"  {i}. {hop.url}")
             lines.append(f"     {hop.redirect_type} ({hop.response_time_ms:.0f}ms)")
             if hop.location:
@@ -407,22 +450,24 @@ def format_redirect_chain(chain: RedirectChain) -> str:
 
     if chain.crosses_domains:
         lines.append("")
-        lines.append("⚠️  Crosses domain boundaries")
+        lines.append("[WARN] Crosses domain boundaries")
 
     if chain.crosses_protocols:
-        lines.append("🔒 Protocol upgrade (HTTP → HTTPS)")
+        lines.append("[INFO] Protocol upgrade (HTTP -> HTTPS)")
 
-    return '\n'.join(lines)
+    return "\n".join(lines)
 
 
 # =============================================================================
 # BATCH REDIRECT ANALYSIS
 # =============================================================================
 
+
 def analyze_redirect_chains(
     urls: List[str],
     max_workers: int = 10,
-    timeout: int = 5,
+    timeout: int = DEFAULT_HTTP_TIMEOUT,
+    user_agent: str = DEFAULT_USER_AGENT,
 ) -> List[RedirectChain]:
     """
     Analyze redirect chains for multiple URLs in parallel.
@@ -437,23 +482,38 @@ def analyze_redirect_chains(
     """
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    chains = [None] * len(urls)
+    chains_by_index: dict[int, RedirectChain] = {}
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_to_index = {
-            executor.submit(follow_redirect_chain, url, timeout=timeout): idx
+            executor.submit(
+                follow_redirect_chain,
+                url,
+                timeout=timeout,
+                user_agent=user_agent,
+            ): idx
             for idx, url in enumerate(urls)
         }
 
         for future in as_completed(future_to_index):
             idx = future_to_index[future]
             try:
-                chains[idx] = future.result()
+                chains_by_index[idx] = future.result()
             except Exception as e:
-                chains[idx] = RedirectChain(
+                chains_by_index[idx] = RedirectChain(
                     start_url=urls[idx],
                     final_url=urls[idx],
                     error=str(e),
                 )
 
-    return chains
+    return [
+        chains_by_index.get(
+            idx,
+            RedirectChain(
+                start_url=url,
+                final_url=url,
+                error="analysis did not return a result",
+            ),
+        )
+        for idx, url in enumerate(urls)
+    ]

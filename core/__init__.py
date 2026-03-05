@@ -10,87 +10,80 @@ This module provides the foundational capabilities for:
 """
 
 # Re-export main functionality for easy imports
+from .extractors import (
+    FileExtractor,
+    extract_domains_from_text,
+    extract_emails_from_text,
+    extract_from_directory,
+    extract_from_files,
+    extract_urls_from_text,
+)
+from .normalizers import (
+    clean_domain_list,
+    clean_url_list,
+    extract_domain_from_url,
+    normalize_domain,
+    normalize_url,
+    remove_tracking_parameters,
+    remove_url_parameters,
+)
 from .patterns import (
-    URL_STANDARD,
-    URL_COMPREHENSIVE,
     DOMAIN_BASIC,
     DOMAIN_COMPREHENSIVE,
-    IPV4,
     EMAIL,
+    IPV4,
+    URL_COMPREHENSIVE,
+    URL_STANDARD,
     has_scheme,
     is_ipv4,
     is_ipv6,
 )
-
 from .validators import (
     ValidationStatus,
-    validate_domain,
-    validate_url,
-    is_valid_domain,
-    is_valid_url,
-    is_url_shortener,
-    is_suspicious_domain,
     filter_valid_domains,
     filter_valid_urls,
+    is_suspicious_domain,
+    is_url_shortener,
+    is_valid_domain,
+    is_valid_url,
+    validate_domain,
+    validate_url,
 )
-
-from .extractors import (
-    extract_urls_from_text,
-    extract_domains_from_text,
-    extract_emails_from_text,
-    FileExtractor,
-    extract_from_files,
-    extract_from_directory,
-)
-
-from .normalizers import (
-    normalize_domain,
-    normalize_url,
-    extract_domain_from_url,
-    clean_domain_list,
-    clean_url_list,
-    remove_url_parameters,
-    remove_tracking_parameters,
-)
-
 
 __all__ = [
     # Patterns
-    'URL_STANDARD',
-    'URL_COMPREHENSIVE',
-    'DOMAIN_BASIC',
-    'DOMAIN_COMPREHENSIVE',
-    'IPV4',
-    'EMAIL',
-    'has_scheme',
-    'is_ipv4',
-    'is_ipv6',
-
+    "URL_STANDARD",
+    "URL_COMPREHENSIVE",
+    "DOMAIN_BASIC",
+    "DOMAIN_COMPREHENSIVE",
+    "IPV4",
+    "EMAIL",
+    "has_scheme",
+    "is_ipv4",
+    "is_ipv6",
     # Validators
-    'ValidationStatus',
-    'validate_domain',
-    'validate_url',
-    'is_valid_domain',
-    'is_valid_url',
-    'is_url_shortener',
-    'is_suspicious_domain',
-    'filter_valid_domains',
-    'filter_valid_urls',
-
+    "ValidationStatus",
+    "validate_domain",
+    "validate_url",
+    "is_valid_domain",
+    "is_valid_url",
+    "is_url_shortener",
+    "is_suspicious_domain",
+    "filter_valid_domains",
+    "filter_valid_urls",
     # Extractors
-    'extract_urls_from_text',
-    'extract_domains_from_text',
-    'extract_emails_from_text',
-    'FileExtractor',
-    'extract_from_files',
-    'extract_from_directory',
-
+    "extract_urls_from_text",
+    "extract_domains_from_text",
+    "extract_emails_from_text",
+    "FileExtractor",
+    "extract_from_files",
+    "extract_from_directory",
     # Normalizers
-    'normalize_domain',
-    'normalize_url',
-    'extract_domain_from_url',
-    'clean_domain_list',
-    'clean_url_list',
-    'remove_url_parameters',
-    'remove_tracking_parameters',
+    "normalize_domain",
+    "normalize_url",
+    "extract_domain_from_url",
+    "clean_domain_list",
+    "clean_url_list",
+    "remove_url_parameters",
+    "remove_tracking_parameters",
 ]

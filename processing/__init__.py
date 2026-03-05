@@ -8,13 +8,13 @@ Consolidated from:
 """
 
 from .parallel import (
+    batch_items,
     process_parallel,
     process_parallel_with_progress,
-    batch_items,
 )
 
 __all__ = [
-    'process_parallel',
-    'process_parallel_with_progress',
-    'batch_items',
+    "process_parallel",
+    "process_parallel_with_progress",
+    "batch_items",
 ]

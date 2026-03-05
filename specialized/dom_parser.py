@@ -4,15 +4,16 @@ DOM parsing and HTML extraction utilities.
 Advanced HTML parsing for extracting specific elements, attributes, and text.
 """
 
-from typing import List, Dict, Optional, Callable, Any
-from dataclasses import dataclass, field
-from bs4 import BeautifulSoup, Tag, NavigableString
 import re
+from dataclasses import asdict, dataclass, field
+from typing import Any, Callable, Dict, List, Optional, cast
 
+from bs4 import BeautifulSoup, Tag
 
 # =============================================================================
 # DATA CLASSES
 # =============================================================================
+
 
 @dataclass
 class DOMElement:
@@ -32,6 +33,10 @@ class DOMElement:
     inner_html: str = ""
     outer_html: str = ""
 
+    def to_dict(self) -> dict:
+        """Convert element information to a serializable dictionary."""
+        return asdict(self)
+
 
 @dataclass
 class LinkInfo:
@@ -48,6 +53,10 @@ class LinkInfo:
     is_external: bool = False
     is_anchor: bool = False
 
+    def to_dict(self) -> dict:
+        """Convert link information to a serializable dictionary."""
+        return asdict(self)
+
 
 @dataclass
 class ImageInfo:
@@ -63,14 +72,30 @@ class ImageInfo:
     loading: Optional[str] = None
     srcset: Optional[str] = None
 
+    def to_dict(self) -> dict:
+        """Convert image information to a serializable dictionary."""
+        return asdict(self)
+
+
+def _attr_to_str(value: object) -> Optional[str]:
+    """Normalize BeautifulSoup attribute values to plain strings."""
+    if value is None:
+        return None
+    if isinstance(value, list):
+        parts = [str(v).strip() for v in value if str(v).strip()]
+        return " ".join(parts) if parts else None
+    text = str(value).strip()
+    return text or None
+
 
 # =============================================================================
 # DOM PARSING
 # =============================================================================
 
+
 def parse_html(
     html: str,
-    parser: str = 'html.parser',
+    parser: str = "html.parser",
 ) -> BeautifulSoup:
     """
     Parse HTML into BeautifulSoup object.
@@ -113,28 +138,24 @@ def find_elements(
         >>> for link in links:
         ...     print(link.get('href'))
     """
-    kwargs = {}
+    kwargs: dict[str, Any] = {}
 
     if class_:
-        kwargs['class_'] = class_
+        kwargs["class_"] = class_
 
     if id_:
-        kwargs['id'] = id_
+        kwargs["id"] = id_
 
     if attrs:
-        kwargs['attrs'] = attrs
+        kwargs["attrs"] = attrs
 
     if text:
-        kwargs['string'] = re.compile(text)
+        kwargs["string"] = re.compile(text)
 
-    return soup.find_all(tag, **kwargs)
+    return cast(List[Tag], soup.find_all(tag, **kwargs))
 
 
-def find_element(
-    soup: BeautifulSoup,
-    tag: str,
-    **kwargs
-) -> Optional[Tag]:
+def find_element(soup: BeautifulSoup, tag: str, **kwargs) -> Optional[Tag]:
     """
     Find first element matching criteria.
 
@@ -146,12 +167,13 @@ def find_element(
     Returns:
         First matching Tag or None
     """
-    return soup.find(tag, **kwargs)
+    return cast(Optional[Tag], soup.find(tag, **kwargs))
 
 
 # =============================================================================
 # ELEMENT EXTRACTION
 # =============================================================================
+
 
 def extract_dom_element(tag: Tag, depth: int = 0) -> DOMElement:
     """
@@ -164,26 +186,35 @@ def extract_dom_element(tag: Tag, depth: int = 0) -> DOMElement:
     Returns:
         DOMElement object
     """
+    normalized_attrs = {
+        key: normalized
+        for key, value in tag.attrs.items()
+        if (normalized := _attr_to_str(value)) is not None
+    }
+
     element = DOMElement(
         tag_name=tag.name,
         text=tag.get_text(strip=True),
-        attributes=dict(tag.attrs),
+        attributes=normalized_attrs,
         depth=depth,
     )
 
     # Extract classes
-    if 'class' in tag.attrs:
-        element.classes = tag.attrs['class']
+    class_value = tag.attrs.get("class")
+    if isinstance(class_value, list):
+        element.classes = [str(cls) for cls in class_value if str(cls)]
+    elif class_value:
+        element.classes = [str(class_value)]
 
     # Extract ID
-    element.id = tag.get('id')
+    element.id = _attr_to_str(tag.get("id"))
 
     # Parent
-    if tag.parent and hasattr(tag.parent, 'name'):
-        element.parent_tag = tag.parent.name
+    if tag.parent and hasattr(tag.parent, "name"):
+        element.parent_tag = str(tag.parent.name) if tag.parent.name else None
 
     # HTML content
-    element.inner_html = ''.join(str(child) for child in tag.children)
+    element.inner_html = "".join(str(child) for child in tag.children)
     element.outer_html = str(tag)
 
     return element
@@ -192,6 +223,7 @@ def extract_dom_element(tag: Tag, depth: int = 0) -> DOMElement:
 # =============================================================================
 # LINK EXTRACTION
 # =============================================================================
+
 
 def extract_links(
     soup: BeautifulSoup,
@@ -217,8 +249,11 @@ def extract_links(
 
     links = []
 
-    for a_tag in soup.find_all('a', href=True):
-        url = a_tag['href']
+    for a_tag in soup.find_all("a", href=True):
+        href_value = _attr_to_str(a_tag.get("href"))
+        if not href_value:
+            continue
+        url = href_value
 
         # Resolve relative URLs
         if base_url:
@@ -227,23 +262,23 @@ def extract_links(
         link = LinkInfo(
             url=url,
             text=a_tag.get_text(strip=True),
-            title=a_tag.get('title'),
-            rel=a_tag.get('rel'),
-            target=a_tag.get('target'),
+            title=_attr_to_str(a_tag.get("title")),
+            rel=_attr_to_str(a_tag.get("rel")),
+            target=_attr_to_str(a_tag.get("target")),
         )
 
         # Parent context
         if a_tag.parent:
-            link.parent_tag = a_tag.parent.name
+            link.parent_tag = str(a_tag.parent.name) if a_tag.parent.name else None
 
         # Check if external
         if base_url:
             base_domain = urlparse(base_url).netloc
             link_domain = urlparse(url).netloc
-            link.is_external = (base_domain != link_domain)
+            link.is_external = base_domain != link_domain
 
         # Check if anchor link
-        link.is_anchor = url.startswith('#')
+        link.is_anchor = url.startswith("#")
 
         links.append(link)
 
@@ -267,7 +302,7 @@ def extract_links_by_selector(
     links = []
 
     for element in soup.select(selector):
-        href = element.get('href')
+        href = _attr_to_str(element.get("href"))
         if href:
             links.append(href)
 
@@ -277,6 +312,7 @@ def extract_links_by_selector(
 # =============================================================================
 # IMAGE EXTRACTION
 # =============================================================================
+
 
 def extract_images(soup: BeautifulSoup) -> List[ImageInfo]:
     """
@@ -296,18 +332,18 @@ def extract_images(soup: BeautifulSoup) -> List[ImageInfo]:
     """
     images = []
 
-    for img_tag in soup.find_all('img'):
-        src = img_tag.get('src')
+    for img_tag in soup.find_all("img"):
+        src = _attr_to_str(img_tag.get("src"))
 
         if src:
             image = ImageInfo(
                 src=src,
-                alt=img_tag.get('alt'),
-                title=img_tag.get('title'),
-                width=img_tag.get('width'),
-                height=img_tag.get('height'),
-                loading=img_tag.get('loading'),
-                srcset=img_tag.get('srcset'),
+                alt=_attr_to_str(img_tag.get("alt")),
+                title=_attr_to_str(img_tag.get("title")),
+                width=_attr_to_str(img_tag.get("width")),
+                height=_attr_to_str(img_tag.get("height")),
+                loading=_attr_to_str(img_tag.get("loading")),
+                srcset=_attr_to_str(img_tag.get("srcset")),
             )
             images.append(image)
 
@@ -318,10 +354,11 @@ def extract_images(soup: BeautifulSoup) -> List[ImageInfo]:
 # TEXT EXTRACTION
 # =============================================================================
 
+
 def extract_text(
     soup: BeautifulSoup,
     strip: bool = True,
-    separator: str = '\n',
+    separator: str = "\n",
 ) -> str:
     """
     Extract all text from HTML.
@@ -365,6 +402,7 @@ def extract_text_from_selector(
 # ATTRIBUTE EXTRACTION
 # =============================================================================
 
+
 def extract_attribute(
     soup: BeautifulSoup,
     tag: str,
@@ -388,7 +426,7 @@ def extract_attribute(
     values = []
 
     for element in soup.find_all(tag):
-        value = element.get(attribute)
+        value = _attr_to_str(element.get(attribute))
         if value:
             values.append(value)
 
@@ -409,12 +447,14 @@ def extract_data_attributes(tag: Tag) -> Dict[str, str]:
         >>> data = extract_data_attributes(tag)
         >>> # {'id': '123', 'name': 'test'} from data-id and data-name
     """
-    data_attrs = {}
+    data_attrs: Dict[str, str] = {}
 
     for attr, value in tag.attrs.items():
-        if attr.startswith('data-'):
+        if attr.startswith("data-"):
             key = attr[5:]  # Remove 'data-' prefix
-            data_attrs[key] = value
+            normalized = _attr_to_str(value)
+            if normalized is not None:
+                data_attrs[key] = normalized
 
     return data_attrs
 
@@ -422,6 +462,7 @@ def extract_data_attributes(tag: Tag) -> Dict[str, str]:
 # =============================================================================
 # STRUCTURAL ANALYSIS
 # =============================================================================
+
 
 def count_elements_by_tag(soup: BeautifulSoup) -> Dict[str, int]:
     """
@@ -433,7 +474,7 @@ def count_elements_by_tag(soup: BeautifulSoup) -> Dict[str, int]:
     Returns:
         Dictionary mapping tag names to counts
     """
-    counts = {}
+    counts: Dict[str, int] = {}
 
     for element in soup.find_all():
         tag_name = element.name
@@ -452,6 +493,7 @@ def get_max_depth(soup: BeautifulSoup) -> int:
     Returns:
         Maximum nesting depth
     """
+
     def calculate_depth(element, current_depth=0):
         max_child_depth = current_depth
 
@@ -468,6 +510,7 @@ def get_max_depth(soup: BeautifulSoup) -> int:
 # =============================================================================
 # FILTERING
 # =============================================================================
+
 
 def filter_elements(
     elements: List[Tag],
@@ -507,9 +550,9 @@ def find_elements_with_text(
     Returns:
         List of matching elements
     """
-    search_kwargs = {'string': re.compile(text_pattern)}
+    search_kwargs = {"string": re.compile(text_pattern)}
 
     if tag:
-        return soup.find_all(tag, **search_kwargs)
+        return cast(List[Tag], soup.find_all(tag, **search_kwargs))
 
-    return soup.find_all(**search_kwargs)
+    return cast(List[Tag], soup.find_all(**search_kwargs))

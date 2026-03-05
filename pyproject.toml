@@ -1,0 +1,66 @@
+[project]
+name = "unified-url-toolkit"
+version = "0.1.0"
+description = "Consolidated URL and domain processing toolkit."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+dependencies = [
+    "PyPDF2",
+    "aiohttp",
+    "beautifulsoup4",
+    "python-docx",
+    "requests",
+]
+
+[project.scripts]
+uut-clean-domains = "unified_url_toolkit.cli.clean_domains:main"
+uut-extract-urls = "unified_url_toolkit.cli.extract_urls:main"
+uut-check-links = "unified_url_toolkit.cli.check_links:main"
+
+[dependency-groups]
+dev = [
+    "mypy",
+    "pip-audit",
+    "pre-commit",
+    "pytest",
+    "pytest-cov",
+    "ruff",
+]
+
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = [
+    "unified_url_toolkit",
+    "unified_url_toolkit.analysis",
+    "unified_url_toolkit.cli",
+    "unified_url_toolkit.config",
+    "unified_url_toolkit.core",
+    "unified_url_toolkit.io",
+    "unified_url_toolkit.processing",
+    "unified_url_toolkit.specialized",
+    "unified_url_toolkit.utils",
+]
+
+[tool.setuptools.package-dir]
+unified_url_toolkit = "."
+
+[tool.uv]
+package = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[tool.mypy]
+python_version = "3.11"
+explicit_package_bases = true

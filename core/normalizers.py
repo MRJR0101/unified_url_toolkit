@@ -8,19 +8,17 @@ Consolidated from:
 - cleanup_domains
 """
 
-import re
 from typing import Optional
-from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
-from . import patterns
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
+from . import patterns
 
 # =============================================================================
 # DOMAIN NORMALIZATION
 # =============================================================================
 
-def normalize_domain(domain: str,
-                    strip_www: bool = False,
-                    strip_subdomain: bool = False) -> str:
+
+def normalize_domain(domain: str, strip_www: bool = False, strip_subdomain: bool = False) -> str:
     """
     Normalize a domain name to canonical form.
 
@@ -47,24 +45,22 @@ def normalize_domain(domain: str,
         'example.com'
     """
     # Basic normalization
-    domain = domain.lower().strip().rstrip('.')
+    domain = domain.lower().strip().rstrip(".")
 
     # Remove www prefix if requested
-    if strip_www and domain.startswith('www.'):
+    if strip_www and domain.startswith("www."):
         domain = domain[4:]
 
     # Keep only base domain if requested
     if strip_subdomain:
-        parts = domain.split('.')
+        parts = domain.split(".")
         if len(parts) >= 2:
-            domain = '.'.join(parts[-2:])
+            domain = ".".join(parts[-2:])
 
     return domain
 
 
-def extract_domain_from_url(url: str,
-                           strip_www: bool = False,
-                           strip_subdomain: bool = False) -> Optional[str]:
+def extract_domain_from_url(url: str, strip_www: bool = False, strip_subdomain: bool = False) -> Optional[str]:
     """
     Extract and normalize domain from a URL.
 
@@ -92,13 +88,13 @@ def extract_domain_from_url(url: str,
         return None
 
     # Remove fragment
-    if '#' in text:
-        text = text.split('#', 1)[0].strip()
+    if "#" in text:
+        text = text.split("#", 1)[0].strip()
         if not text:
             return None
 
     # If it's a full URL with scheme, parse it
-    if '://' in text:
+    if "://" in text:
         try:
             parsed = urlparse(text)
             hostname = parsed.hostname
@@ -112,14 +108,14 @@ def extract_domain_from_url(url: str,
     if not match:
         return None
 
-    domain = match.group(1).lower().strip('.')
+    domain = match.group(1).lower().strip(".")
 
     # Validation checks
-    if domain == 'www' or '.' not in domain:
+    if domain == "www" or "." not in domain:
         return None
 
     # Check TLD length
-    tld = domain.rsplit('.', 1)[-1]
+    tld = domain.rsplit(".", 1)[-1]
     if len(tld) < 2:
         return None
 
@@ -127,11 +123,13 @@ def extract_domain_from_url(url: str,
     return normalize_domain(domain, strip_www=strip_www, strip_subdomain=strip_subdomain)
 
 
-def clean_domain_list(domains: list[str],
-                     strip_www: bool = False,
-                     strip_subdomain: bool = False,
-                     remove_duplicates: bool = True,
-                     sort: bool = False) -> list[str]:
+def clean_domain_list(
+    domains: list[str],
+    strip_www: bool = False,
+    strip_subdomain: bool = False,
+    remove_duplicates: bool = True,
+    sort: bool = False,
+) -> list[str]:
     """
     Clean and normalize a list of domains.
 
@@ -152,8 +150,8 @@ def clean_domain_list(domains: list[str],
         >>> clean_domain_list(domains, strip_www=True, remove_duplicates=True)
         ['example.com', 'test.org']
     """
-    cleaned = []
-    seen = set() if remove_duplicates else None
+    cleaned: list[str] = []
+    seen: set[str] = set()
 
     for item in domains:
         domain = extract_domain_from_url(item, strip_www=strip_www, strip_subdomain=strip_subdomain)
@@ -177,12 +175,15 @@ def clean_domain_list(domains: list[str],
 # URL NORMALIZATION
 # =============================================================================
 
-def normalize_url(url: str,
-                 default_scheme: str = 'https',
-                 remove_fragment: bool = True,
-                 remove_query: bool = False,
-                 remove_trailing_slash: bool = False,
-                 sort_query_params: bool = False) -> str:
+
+def normalize_url(
+    url: str,
+    default_scheme: str = "https",
+    remove_fragment: bool = True,
+    remove_query: bool = False,
+    remove_trailing_slash: bool = False,
+    sort_query_params: bool = False,
+) -> str:
     """
     Normalize a URL to canonical form.
 
@@ -228,18 +229,18 @@ def normalize_url(url: str,
 
     # Apply transformations
     if remove_fragment:
-        fragment = ''
+        fragment = ""
 
     if remove_query:
-        query = ''
+        query = ""
     elif sort_query_params and query:
         # Parse, sort, and rebuild query string
         query_dict = parse_qs(query, keep_blank_values=True)
         sorted_params = sorted(query_dict.items())
         query = urlencode(sorted_params, doseq=True)
 
-    if remove_trailing_slash and path.endswith('/') and len(path) > 1:
-        path = path.rstrip('/')
+    if remove_trailing_slash and path.endswith("/") and len(path) > 1:
+        path = path.rstrip("/")
 
     # Rebuild URL
     normalized = urlunparse((scheme, netloc, path, params, query, fragment))
@@ -247,11 +248,9 @@ def normalize_url(url: str,
     return normalized
 
 
-def clean_url_list(urls: list[str],
-                  normalize: bool = True,
-                  remove_duplicates: bool = True,
-                  sort: bool = False,
-                  **normalize_kwargs) -> list[str]:
+def clean_url_list(
+    urls: list[str], normalize: bool = True, remove_duplicates: bool = True, sort: bool = False, **normalize_kwargs
+) -> list[str]:
     """
     Clean and normalize a list of URLs.
 
@@ -265,8 +264,8 @@ def clean_url_list(urls: list[str],
     Returns:
         List of cleaned URLs
     """
-    cleaned = []
-    seen = set() if remove_duplicates else None
+    cleaned: list[str] = []
+    seen: set[str] = set()
 
     for url in urls:
         url = url.strip()
@@ -296,6 +295,7 @@ def clean_url_list(urls: list[str],
 # SPECIAL CLEANING OPERATIONS
 # =============================================================================
 
+
 def remove_url_parameters(url: str, params_to_remove: list[str] | None = None) -> str:
     """
     Remove specific query parameters from URL.
@@ -318,8 +318,7 @@ def remove_url_parameters(url: str, params_to_remove: list[str] | None = None) -
 
     if params_to_remove is None:
         # Remove all parameters
-        return urlunparse((parsed.scheme, parsed.netloc, parsed.path,
-                          parsed.params, '', parsed.fragment))
+        return urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, "", parsed.fragment))
 
     # Parse query string
     query_dict = parse_qs(parsed.query, keep_blank_values=True)
@@ -332,8 +331,7 @@ def remove_url_parameters(url: str, params_to_remove: list[str] | None = None) -
     new_query = urlencode(query_dict, doseq=True)
 
     # Rebuild URL
-    return urlunparse((parsed.scheme, parsed.netloc, parsed.path,
-                      parsed.params, new_query, parsed.fragment))
+    return urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, new_query, parsed.fragment))
 
 
 def remove_tracking_parameters(url: str) -> str:
@@ -349,9 +347,20 @@ def remove_tracking_parameters(url: str) -> str:
         URL with tracking parameters removed
     """
     tracking_params = [
-        'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
-        'fbclid', 'gclid', 'msclkid', '_ga', '_gid',
-        'ref', 'source', 'campaign', 'medium'
+        "utm_source",
+        "utm_medium",
+        "utm_campaign",
+        "utm_term",
+        "utm_content",
+        "fbclid",
+        "gclid",
+        "msclkid",
+        "_ga",
+        "_gid",
+        "ref",
+        "source",
+        "campaign",
+        "medium",
     ]
 
     return remove_url_parameters(url, tracking_params)
