@@ -29,6 +29,8 @@ def read_lines_from_file(
     Yields:
         Processed lines from file
     """
+    # errors="ignore" is intentional: URL/domain files often contain mixed encodings
+    # and silent byte-level skipping is preferable to crashing the whole read.
     try:
         with filepath.open("r", encoding=encoding, errors="ignore") as f:
             for line in f:
@@ -160,7 +162,7 @@ def read_urls_from_csv(
     """
     urls: list[str] = []
 
-    with filepath.open("r", encoding=encoding, errors="ignore", newline="") as f:
+    with filepath.open("r", encoding=encoding, errors="ignore", newline="") as f:  # errors="ignore": see read_lines_from_file
         if isinstance(url_column, str):
             if not has_header:
                 raise ValueError("String url_column requires has_header=True")
