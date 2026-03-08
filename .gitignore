@@ -33,3 +33,8 @@ Thumbs.db
 
 # Internal ops/quality workflow files
 MISSINGMORE
+MISSINGMORE.txt
+MISSINGMORE_FILE_LEDGER.tsv
+
+# Local build staging
+.tmp_dist/
