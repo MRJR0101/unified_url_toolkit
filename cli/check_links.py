@@ -78,6 +78,33 @@ Examples:
 
     parser.add_argument("--show-all", action="store_true", help="Show all URLs in output (default: errors only)")
 
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Only check the first N URLs (after --offset). Useful for sampling large files.",
+    )
+
+    parser.add_argument(
+        "--offset",
+        type=int,
+        default=0,
+        metavar="N",
+        help="Skip the first N URLs. Use with --limit to resume a previous run (default: 0).",
+    )
+
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=None,
+        metavar="N",
+        help=(
+            "Process URLs in batches of N. Writes CSV output after each batch so progress "
+            "is never lost. Recommended for files with 10k+ URLs (e.g. --batch-size 1000)."
+        ),
+    )
+
     args = parser.parse_args()
 
     # Validate input
@@ -94,29 +121,79 @@ Examples:
         print("[ERROR] No URLs found in input file")
         sys.exit(1)
 
-    print(f"[INFO] Checking {len(urls)} URLs...")
+    # Apply offset and limit
+    if args.offset:
+        if args.offset >= len(urls):
+            print(f"[ERROR] --offset {args.offset} exceeds total URL count ({len(urls)})")
+            sys.exit(2)
+        urls = urls[args.offset:]
+        print(f"[INFO] Skipping first {args.offset} URLs (--offset)")
+
+    if args.limit is not None:
+        urls = urls[:args.limit]
+        print(f"[INFO] Limiting to {args.limit} URLs (--limit)")
+
+    total_urls = len(urls)
+    print(f"[INFO] Checking {total_urls} URLs...")
     print(f"[INFO] Concurrency: {args.concurrency} | Timeout: {args.timeout}s | Retries: {args.retries}")
+    if args.batch_size:
+        import math
+        total_batches = math.ceil(total_urls / args.batch_size)
+        print(f"[INFO] Batch mode: {args.batch_size} URLs/batch | {total_batches} batches total")
     print()
 
-    # Create checker and run
+    # Create checker
     checker = URLChecker(
         timeout=args.timeout, retries=args.retries, concurrency=args.concurrency, follow_redirects=not args.no_redirects
     )
 
-    results = checker.check_sync(urls)
+    # --- Batch mode ---
+    if args.batch_size:
+        import math
+        import time as _time
+
+        all_results = []
+        total_batches = math.ceil(total_urls / args.batch_size)
+        run_start = _time.monotonic()
+
+        for batch_num in range(total_batches):
+            batch_start_idx = batch_num * args.batch_size
+            batch_urls = urls[batch_start_idx: batch_start_idx + args.batch_size]
+            batch_abs_offset = args.offset + batch_start_idx
+
+            print(f"[Batch {batch_num + 1}/{total_batches}] URLs {batch_abs_offset + 1}"
+                  f"-{batch_abs_offset + len(batch_urls)} of {args.offset + total_urls}")
+
+            batch_results = checker.check_sync(batch_urls)
+            all_results.extend(batch_results)
+
+            # Write CSV progress after every batch
+            if args.output:
+                csv_path = Path(args.output)
+                written = write_check_results_to_csv(all_results, csv_path)
+                elapsed = _time.monotonic() - run_start
+                pct = len(all_results) / total_urls * 100
+                print(f"  -> {written} results saved | {pct:.1f}% done | {elapsed:.0f}s elapsed")
+
+        results = all_results
+
+    # --- Single-pass mode ---
+    else:
+        results = checker.check_sync(urls)
 
     # Display results
+    print()
     print("=" * 80)
 
     for i, result in enumerate(results, 1):
-        # Determine if we should show this result
         show = args.show_all or (args.show_ok and result.is_ok()) or result.is_error()
 
         if show:
             status_symbol = "OK" if result.is_ok() else "ERR"
+            abs_index = args.offset + i
             url_display = result.url[:65] + "..." if len(result.url) > 65 else result.url
 
-            print(f"[{i}/{len(results)}] {status_symbol} {url_display}")
+            print(f"[{abs_index}] {status_symbol} {url_display}")
             print(
                 f"        Status: {result.http_status or 'ERROR'} | Time: {result.elapsed_ms}ms | Type: {result.status}"
             )
@@ -133,6 +210,8 @@ Examples:
     print("=" * 80)
     print("SUMMARY")
     print("=" * 80)
+    if args.offset:
+        print(f"URL range: {args.offset + 1} - {args.offset + total_urls}")
     print(f"Total checked: {summary['total']}")
     print(f"OK: {summary['ok']} ({summary['success_rate']:.1f}%)")
     print(f"Failed: {summary['failed']}")
@@ -145,8 +224,8 @@ Examples:
     print(f"Average response time: {summary['avg_time_ms']}ms")
     print(f"Total time: {summary['total_time_ms'] / 1000:.2f}s")
 
-    # Write output files
-    if args.output:
+    # Write output files (single-pass or final batch write)
+    if args.output and not args.batch_size:
         csv_path = Path(args.output)
         count = write_check_results_to_csv(results, csv_path)
         print(f"\n[OK] Wrote {count} results to: {csv_path}")
