@@ -1,0 +1,111 @@
+PowerShell 7.5.4
+PS C:\Dev\PROJECTS\unified_url_toolkit> python project_tree.py
+unified_url_toolkit/
+|-- .github/
+|   |-- ISSUE_TEMPLATE/
+|   |   |-- bug_report.yml
+|   |   +-- feature_request.yml
+|   |-- workflows/
+|   |   |-- ci.yml
+|   |   |-- python-ci.yml
+|   |   +-- quality-center-gate.yml
+|   |-- dependabot.yml
+|   +-- pull_request_template.md
+|-- .tmp_dist/
+|   |-- .gitignore
+|   +-- unified_url_toolkit-0.1.0-py3-none-any.whl
+|-- analysis/
+|   |-- __init__.py
+|   |-- categorizers.py
+|   +-- README.md
+|-- cli/
+|   |-- __init__.py
+|   |-- check_links.py
+|   |-- clean_domains.py
+|   |-- extract_urls.py
+|   +-- README.md
+|-- config/
+|   |-- __init__.py
+|   |-- README.md
+|   +-- settings.py
+|-- core/
+|   |-- __init__.py
+|   |-- checkers.py
+|   |-- extractors.py
+|   |-- normalizers.py
+|   |-- patterns.py
+|   |-- README.md
+|   +-- validators.py
+|-- docs/
+|   |-- ARCHITECTURE.md
+|   |-- README.md
+|   |-- USAGE.md
+|   +-- VISION_AND_PLAN.md
+|-- examples/
+|   |-- advanced_usage.py
+|   |-- basic_usage.py
+|   |-- README.md
+|   +-- specialized_modules.py
+|-- inspection/
+|-- io/
+|   |-- __init__.py
+|   |-- readers.py
+|   |-- README.md
+|   +-- writers.py
+|-- processing/
+|   |-- __init__.py
+|   |-- parallel.py
+|   +-- README.md
+|-- specialized/
+|   |-- __init__.py
+|   |-- cache_analyzer.py
+|   |-- content_inspector.py
+|   |-- dom_parser.py
+|   |-- http_analyzer.py
+|   |-- http_inspector.py
+|   |-- link_checker.py
+|   |-- metadata_extractor.py
+|   |-- README.md
+|   |-- redirect_mapper.py
+|   +-- security_analyzer.py
+|-- src/
+|   +-- unified_url_toolkit/
+|       |-- __init__.py
+|       +-- README.md
+|-- tests/
+|   |-- README.md
+|   |-- test_cli_contracts.py
+|   |-- test_cli_smoke.py
+|   |-- test_dom_parser.py
+|   +-- test_smoke.py
+|-- utils/
+|   |-- __init__.py
+|   |-- errors.py
+|   |-- progress.py
+|   +-- README.md
+|-- .coverage
+|-- .env.example
+|-- .gitignore
+|-- .pre-commit-config.yaml
+|-- __init__.py
+|-- CHANGELOG.md
+|-- CONTRIBUTING.md
+|-- DoD_CHECKLIST.md
+|-- domains.txt
+|-- justfile
+|-- LICENSE
+|-- MIGRATION.md
+|-- MISSINGMORE
+|-- MISSINGMORE.txt
+|-- MISSINGMORE_FILE_LEDGER.tsv
+|-- PHASE2_COMPLETION.md
+|-- project_tree.py
+|-- pyproject.toml
+|-- README.md
+|-- requirements.txt
+|-- SURGERY_REPORT.md
+|-- urls_extract_20260308_054118.txt
+|-- urls_extract_20260308_054613.txt
+|-- uv.lock
++-- VERIFY.md
+PS C:\Dev\PROJECTS\unified_url_toolkit>

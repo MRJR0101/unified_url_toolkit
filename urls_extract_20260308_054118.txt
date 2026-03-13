@@ -1,0 +1,6 @@
+https://github.com/MRJR0101
+http://example.com/page?ref=test
+https://www.python.org
+https://docs.anthropic.com
+https://httpstat.us/200
+https://httpstat.us/404
