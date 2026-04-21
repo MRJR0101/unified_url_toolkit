@@ -1,5 +1,0 @@
-PyPDF2
-aiohttp
-beautifulsoup4
-python-docx
-requests

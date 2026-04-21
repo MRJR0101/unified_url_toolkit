@@ -38,3 +38,7 @@ MISSINGMORE_FILE_LEDGER.tsv
 
 # Local build staging
 .tmp_dist/
+
+# Local working files
+_STRUCTURE.txt
+

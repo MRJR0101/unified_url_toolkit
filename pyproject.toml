@@ -6,11 +6,11 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
 dependencies = [
-    "PyPDF2",
-    "aiohttp",
-    "beautifulsoup4",
-    "python-docx",
-    "requests",
+    "PyPDF2>=3.0,<4.0",
+    "aiohttp>=3.13,<4.0",
+    "beautifulsoup4>=4.14,<5.0",
+    "python-docx>=1.2,<2.0",
+    "requests>=2.33,<3.0",
 ]
 
 [project.scripts]
@@ -20,12 +20,12 @@ uut-check-links = "unified_url_toolkit.cli.check_links:main"
 
 [dependency-groups]
 dev = [
-    "mypy",
-    "pip-audit",
-    "pre-commit",
-    "pytest",
-    "pytest-cov",
-    "ruff",
+    "mypy>=1.10,<2.0",
+    "pip-audit>=2.7,<3.0",
+    "pre-commit>=4.5,<5.0",
+    "pytest>=9.0,<10.0",
+    "pytest-cov>=7.1,<8.0",
+    "ruff>=0.15,<1.0",
 ]
 
 [build-system]
