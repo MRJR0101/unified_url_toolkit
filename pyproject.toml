@@ -19,7 +19,7 @@ uut-check-links = "unified_url_toolkit.cli.check_links:main"
 
 [dependency-groups]
 dev = [
-    "mypy>=1.10,<2.0",
+    "mypy>=1.20.2,<2.0",
     "pip-audit>=2.7,<3.0",
     "pre-commit>=4.5,<5.0",
     "pytest>=9.0,<10.0",
